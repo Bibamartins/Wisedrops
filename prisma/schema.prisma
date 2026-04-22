@@ -4,6 +4,8 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
+  // native = local dev; rhel-openssl-3.0.x = Netlify Ubuntu runtime
+  binaryTargets   = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

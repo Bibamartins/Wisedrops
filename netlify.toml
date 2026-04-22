@@ -5,8 +5,6 @@
 [build.environment]
   # Node 20 (match local dev version)
   NODE_VERSION = "20"
-  # Skip Prisma engine detection errors on Netlify's edge
-  PRISMA_CLI_BINARY_TARGETS = "native,rhel-openssl-1.0.x"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
