@@ -1,0 +1,760 @@
+// WiseDrops - Complete Database Schema
+// Cannabis Medicinal Platform with EMR, Treatment Tracking, and ANVISA Integration
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, pg_trgm]
+}
+
+// ============================================================
+// AUTH & USERS
+// ============================================================
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+  PHARMACY_MANAGER
+}
+
+enum AccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+model User {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String        @unique
+  emailVerified DateTime?
+  passwordHash  String
+  role          UserRole
+  status        AccountStatus @default(PENDING_VERIFICATION)
+  fullName      String
+  cpf           String        @unique
+  phone         String
+  avatarUrl     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  patient       Patient?
+  doctor        Doctor?
+  sessions      Session[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@index([cpf])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("sessions")
+}
+
+// ============================================================
+// PATIENT DOMAIN
+// ============================================================
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+model Patient {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String   @unique @db.Uuid
+  dateOfBirth         DateTime @db.Date
+  gender              Gender
+  address             Json     // { street, number, complement, neighborhood, city, state, zipCode }
+  emergencyContact    Json?    // { name, phone, relationship }
+  healthInsurance     String?
+  allergies           String[]
+  currentMedications  String[]
+  primaryConditions   String[] // ICD-10 codes
+  onboardingCompleted Boolean  @default(false)
+  anvisaPatientId     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicalRecords       MedicalRecord[]
+  consultations        Consultation[]
+  prescriptions        Prescription[]
+  treatmentPlans       TreatmentPlan[]
+  adherenceLogs        AdherenceLog[]
+  symptomEntries       SymptomJournalEntry[]
+  orders               Order[]
+  anvisaAuthorizations AnvisaAuthorization[]
+  quizResponses        PatientQuiz[]
+
+  @@map("patients")
+}
+
+// ============================================================
+// PATIENT QUIZ / ASSESSMENT
+// ============================================================
+
+model PatientQuiz {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId                String   @db.Uuid
+  // Full answers stored as JSONB
+  answers                  Json     // { patient_for, conditions, severity, daily_impact, ... }
+  // Computed recommendation
+  recommendedSpecialties   String[]
+  riskLevel                String   // low, medium, high
+  priorityCondition        String
+  suggestedProducts        String[]
+  consultationFocus        String[]
+  personalizedMessage      String?  @db.Text
+  // Link to consultation if booked
+  consultationId           String?  @db.Uuid
+  completedAt              DateTime @default(now())
+  createdAt                DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, createdAt])
+  @@map("patient_quizzes")
+}
+
+// ============================================================
+// DOCTOR DOMAIN
+// ============================================================
+
+enum DoctorVerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model Doctor {
+  id                    String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String                   @unique @db.Uuid
+  crm                   String
+  crmState              String                   @db.Char(2)
+  specialty             String[]
+  bio                   String?
+  consultationPriceCents Int                     @default(8900) // R$89,00
+  verificationStatus    DoctorVerificationStatus @default(PENDING)
+  verificationDocuments Json?
+  stripeConnectId       String?
+  averageRating         Float                    @default(0)
+  totalConsultations    Int                      @default(0)
+  isAcceptingPatients   Boolean                  @default(true)
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availability          DoctorAvailability[]
+  consultations         Consultation[]
+  prescriptions         Prescription[]
+  treatmentPlans        TreatmentPlan[]
+  prescriptionTemplates PrescriptionTemplate[]
+
+  @@unique([crm, crmState])
+  @@map("doctors")
+}
+
+model DoctorAvailability {
+  id                  String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  doctorId            String  @db.Uuid
+  dayOfWeek           Int     // 0=Sunday, 6=Saturday
+  startTime           String  // "08:00"
+  endTime             String  // "18:00"
+  slotDurationMinutes Int     @default(30)
+  isActive            Boolean @default(true)
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@map("doctor_availability")
+}
+
+// ============================================================
+// ELECTRONIC MEDICAL RECORDS (EMR / Prontuario Eletronico)
+// ============================================================
+
+enum RecordType {
+  INITIAL_ASSESSMENT
+  FOLLOW_UP
+  VITAL_SIGNS
+  LAB_RESULT
+  IMAGING
+  PRESCRIPTION_NOTE
+  PROGRESS_NOTE
+  DISCHARGE_SUMMARY
+  REFERRAL
+  ADVERSE_EVENT
+}
+
+model MedicalRecord {
+  id               String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId        String     @db.Uuid
+  consultationId   String?    @db.Uuid
+  recordType       RecordType
+  structuredData   Json       // FHIR-inspired structured data per record type
+  narrativeNote    String?    @db.Text
+  icdCodes         String[]
+  attachments      String[]   // S3 URLs
+  signedByDoctorId String?    @db.Uuid
+  signedAt         DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  consultation Consultation? @relation(fields: [consultationId], references: [id])
+
+  @@index([patientId, recordType])
+  @@index([patientId, createdAt])
+  @@map("medical_records")
+}
+
+// ============================================================
+// CONSULTATIONS
+// ============================================================
+
+enum ConsultationType {
+  VIDEO
+  CHAT
+  IN_PERSON
+}
+
+enum ConsultationStatus {
+  SCHEDULED
+  WAITING_ROOM
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Consultation {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId         String             @db.Uuid
+  doctorId          String             @db.Uuid
+  type              ConsultationType   @default(VIDEO)
+  status            ConsultationStatus @default(SCHEDULED)
+  scheduledAt       DateTime
+  startedAt         DateTime?
+  endedAt           DateTime?
+  durationMinutes   Int?
+  videoRoomId       String?
+  videoRecordingUrl String?
+  chiefComplaint    String?
+  consultationNotes String?            @db.Text
+  priceCents        Int
+  paymentId         String?            @db.Uuid
+  rating            Int?               // 1-5
+  ratingComment     String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  patient        Patient         @relation(fields: [patientId], references: [id])
+  doctor         Doctor          @relation(fields: [doctorId], references: [id])
+  payment        Payment?        @relation(fields: [paymentId], references: [id])
+  medicalRecords MedicalRecord[]
+  prescriptions  Prescription[]
+  chatMessages   ChatMessage[]
+
+  @@index([patientId, scheduledAt])
+  @@index([doctorId, scheduledAt])
+  @@index([status])
+  @@map("consultations")
+}
+
+model ChatMessage {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  consultationId String       @db.Uuid
+  senderUserId   String       @db.Uuid
+  content        String       @db.Text
+  messageType    String       @default("text") // text, image, file
+  attachmentUrl  String?
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  consultation Consultation @relation(fields: [consultationId], references: [id])
+
+  @@index([consultationId, createdAt])
+  @@map("chat_messages")
+}
+
+// ============================================================
+// PRESCRIPTIONS
+// ============================================================
+
+enum PrescriptionType {
+  TYPE_A // Notificacao Receita A (amarela) - THC >0.2%
+  TYPE_B // Notificacao Receita B (azul) - THC <0.2%
+  SIMPLE // Receita simples
+}
+
+enum PrescriptionStatus {
+  DRAFT
+  SIGNED
+  SENT_TO_ANVISA
+  ANVISA_APPROVED
+  ANVISA_REJECTED
+  DISPENSED
+  EXPIRED
+  CANCELLED
+}
+
+model Prescription {
+  id                    String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId             String             @db.Uuid
+  doctorId              String             @db.Uuid
+  consultationId        String?            @db.Uuid
+  prescriptionType      PrescriptionType
+  status                PrescriptionStatus @default(DRAFT)
+  items                 Json               // [{ productId?, genericName, concentration, form, dosage, frequency, quantity, duration, instructions }]
+  clinicalJustification String?            @db.Text
+  icdCodes              String[]
+  validUntil            DateTime
+  pdfUrl                String?
+  digitalSignature      String?
+  signedAt              DateTime?
+  anvisaAuthorizationId String?            @db.Uuid
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  patient             Patient              @relation(fields: [patientId], references: [id])
+  doctor              Doctor               @relation(fields: [doctorId], references: [id])
+  consultation        Consultation?        @relation(fields: [consultationId], references: [id])
+  anvisaAuthorization AnvisaAuthorization? @relation(fields: [anvisaAuthorizationId], references: [id])
+  orders              Order[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@map("prescriptions")
+}
+
+model PrescriptionTemplate {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  doctorId   String   @db.Uuid
+  name       String
+  items      Json
+  conditions String[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@map("prescription_templates")
+}
+
+// ============================================================
+// ANVISA INTEGRATION
+// ============================================================
+
+enum AnvisaStatus {
+  PENDING_SUBMISSION
+  SUBMITTED
+  UNDER_ANALYSIS
+  APPROVED
+  REJECTED
+  EXPIRED
+  RENEWED
+}
+
+model AnvisaAuthorization {
+  id                  String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId           String       @db.Uuid
+  anvisaProtocol      String?      @unique
+  status              AnvisaStatus @default(PENDING_SUBMISSION)
+  submissionPayload   Json?
+  responsePayload     Json?
+  authorizedProducts  Json?
+  validFrom           DateTime?
+  validUntil          DateTime?
+  rejectionReason     String?
+  submittedAt         DateTime?
+  approvedAt          DateTime?
+  renewalReminderSent Boolean      @default(false)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  prescriptions Prescription[]
+
+  @@index([patientId])
+  @@index([status])
+  @@map("anvisa_authorizations")
+}
+
+// ============================================================
+// TREATMENT TRACKING & ADHERENCE
+// ============================================================
+
+enum TreatmentStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  DISCONTINUED
+}
+
+model TreatmentPlan {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId       String          @db.Uuid
+  doctorId        String          @db.Uuid
+  title           String
+  condition       String
+  icdCode         String
+  status          TreatmentStatus @default(ACTIVE)
+  startDate       DateTime        @db.Date
+  expectedEndDate DateTime?       @db.Date
+  goals           Json            // [{ description, targetMetric, targetValue, achievedAt? }]
+  currentRegimen  Json            // [{ productId, dosage, frequency, route, timeOfDay[], instructions }]
+  regimenHistory  Json            @default("[]")
+  notes           String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  patient       Patient            @relation(fields: [patientId], references: [id])
+  doctor        Doctor             @relation(fields: [doctorId], references: [id])
+  adherenceLogs AdherenceLog[]
+  outcomes      TreatmentOutcome[]
+
+  @@index([patientId, status])
+  @@map("treatment_plans")
+}
+
+model AdherenceLog {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId       String        @db.Uuid
+  treatmentPlanId String        @db.Uuid
+  scheduledAt     DateTime
+  takenAt         DateTime?
+  skipped         Boolean       @default(false)
+  skipReason      String?
+  dosageTaken     String?
+  sideEffects     String[]
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  patient       Patient       @relation(fields: [patientId], references: [id])
+  treatmentPlan TreatmentPlan @relation(fields: [treatmentPlanId], references: [id])
+
+  @@index([patientId, scheduledAt])
+  @@index([treatmentPlanId, scheduledAt])
+  @@map("adherence_logs")
+}
+
+model TreatmentOutcome {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  treatmentPlanId String        @db.Uuid
+  recordedAt      DateTime      @default(now())
+  metrics         Json          // { painScale, sleepQuality, anxietyLevel, appetiteLevel, functionalStatus }
+  patientReported Boolean       @default(true)
+  notes           String?
+
+  treatmentPlan TreatmentPlan @relation(fields: [treatmentPlanId], references: [id])
+
+  @@index([treatmentPlanId, recordedAt])
+  @@map("treatment_outcomes")
+}
+
+model SymptomJournalEntry {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId  String   @db.Uuid
+  recordedAt DateTime @default(now())
+  symptoms   Json     // { mood, painLevel, sleepHours, sleepQuality, anxiety, appetite, energy }
+  activities String[]
+  triggers   String[]
+  notes      String?  @db.Text
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, recordedAt])
+  @@map("symptom_journal_entries")
+}
+
+// ============================================================
+// PRODUCT CATALOG
+// ============================================================
+
+enum ProductOrigin {
+  IMPORTED // RDC 660 - importados
+  DOMESTIC // RDC 327 - nacionais
+}
+
+enum ProductCategory {
+  OIL
+  CAPSULE
+  SPRAY
+  TOPICAL
+  GUMMY
+  FLOWER
+  VAPORIZER
+  OTHER
+}
+
+model Product {
+  id                       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                     String
+  manufacturer             String
+  origin                   ProductOrigin
+  category                 ProductCategory
+  thcContent               Float?
+  cbdContent               Float?
+  otherCannabinoids        Json?
+  form                     String
+  concentration            String
+  volume                   String?
+  description              String?         @db.Text
+  imageUrls                String[]
+  priceCents               Int
+  anvisaRegistration       String?
+  rdcClassification        String          // "RDC327" or "RDC660"
+  requiresPrescriptionType PrescriptionType
+  isAvailable              Boolean         @default(true)
+  stockQuantity            Int             @default(0)
+  supplierId               String?         @db.Uuid
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  supplier   Supplier?   @relation(fields: [supplierId], references: [id])
+  orderItems OrderItem[]
+
+  @@index([origin, category])
+  @@index([isAvailable])
+  @@map("products")
+}
+
+model Supplier {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  cnpj          String   @unique
+  anvisaLicense String?
+  contactEmail  String
+  contactPhone  String
+  address       Json
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  products Product[]
+
+  @@map("suppliers")
+}
+
+// ============================================================
+// ORDERS & PAYMENTS
+// ============================================================
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  AWAITING_ANVISA
+  ANVISA_APPROVED
+  SHIPPED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model Order {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId         String      @db.Uuid
+  prescriptionId    String      @db.Uuid
+  status            OrderStatus @default(PENDING_PAYMENT)
+  subtotalCents     Int
+  shippingCents     Int         @default(0)
+  discountCents     Int         @default(0)
+  totalCents        Int
+  shippingAddress   Json
+  trackingCode      String?
+  trackingCarrier   String?
+  estimatedDelivery DateTime?
+  deliveredAt       DateTime?
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  patient       Patient              @relation(fields: [patientId], references: [id])
+  prescription  Prescription         @relation(fields: [prescriptionId], references: [id])
+  items         OrderItem[]
+  payments      Payment[]
+  statusHistory OrderStatusHistory[]
+
+  @@index([patientId, createdAt])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId        String @db.Uuid
+  productId      String @db.Uuid
+  quantity       Int
+  unitPriceCents Int
+  totalCents     Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId   String      @db.Uuid
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  PIX
+  BOLETO
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentPurpose {
+  CONSULTATION
+  ORDER
+  ANVISA_FEE
+}
+
+model Payment {
+  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId               String?        @db.Uuid
+  purpose               PaymentPurpose
+  method                PaymentMethod
+  status                PaymentStatus  @default(PENDING)
+  amountCents           Int
+  platformFeeCents      Int            @default(0)
+  stripePaymentIntentId String?        @unique
+  stripeTransferId      String?
+  pixCode               String?
+  boletoUrl             String?
+  paidAt                DateTime?
+  refundedAt            DateTime?
+  metadata              Json?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  order         Order?         @relation(fields: [orderId], references: [id])
+  consultations Consultation[]
+
+  @@index([stripePaymentIntentId])
+  @@map("payments")
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  SMS
+  WHATSAPP
+  IN_APP
+}
+
+enum NotificationType {
+  APPOINTMENT_REMINDER
+  ADHERENCE_REMINDER
+  PRESCRIPTION_READY
+  ANVISA_STATUS_UPDATE
+  ORDER_STATUS_UPDATE
+  PAYMENT_CONFIRMATION
+  TREATMENT_CHECK_IN
+  DOCTOR_MESSAGE
+  SYSTEM_ALERT
+}
+
+model Notification {
+  id         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String              @db.Uuid
+  type       NotificationType
+  channel    NotificationChannel
+  title      String
+  body       String
+  data       Json?
+  readAt     DateTime?
+  sentAt     DateTime?
+  failedAt   DateTime?
+  failReason String?
+  createdAt  DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, type])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id               String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String              @db.Uuid
+  notificationType NotificationType
+  enabledChannels  NotificationChannel[]
+  quietHoursStart  String?
+  quietHoursEnd    String?
+
+  @@unique([userId, notificationType])
+  @@map("notification_preferences")
+}
+
+// ============================================================
+// AUDIT & COMPLIANCE
+// ============================================================
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?  @db.Uuid
+  action     String   // "emr.create", "prescription.sign", "patient.view_record"
+  entityType String
+  entityId   String?  @db.Uuid
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@map("audit_logs")
+}

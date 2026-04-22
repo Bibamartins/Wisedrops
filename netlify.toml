@@ -1,0 +1,16 @@
+[build]
+  command = "prisma generate && next build"
+  publish = ".next"
+
+[build.environment]
+  # Node 20 (match local dev version)
+  NODE_VERSION = "20"
+  # Skip Prisma engine detection errors on Netlify's edge
+  PRISMA_CLI_BINARY_TARGETS = "native,rhel-openssl-1.0.x"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# NextAuth requires this on Netlify — otherwise the session cookie fails
+# because Netlify's edge strips/rewrites host headers.
+# AUTH_TRUST_HOST is read by NextAuth v5 and must be "true".
