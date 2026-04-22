@@ -43,6 +43,9 @@ declare module 'next-auth/jwt' {
 }
 
 export const authConfig: NextAuthConfig = {
+  // Required for Netlify + any reverse proxy — tells NextAuth to trust
+  // x-forwarded-host headers. Without this: "Configuration" error.
+  trustHost: true,
   providers: [
     // -----------------------------------------------------------------------
     // Credentials: email + password
@@ -98,19 +101,23 @@ export const authConfig: NextAuthConfig = {
     }),
 
     // -----------------------------------------------------------------------
-    // Google OAuth
+    // Google OAuth — enabled only if credentials are set (avoids init error)
     // -----------------------------------------------------------------------
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-      authorization: {
-        params: {
-          prompt: 'consent',
-          access_type: 'offline',
-          response_type: 'code',
-        },
-      },
-    }),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            authorization: {
+              params: {
+                prompt: 'consent',
+                access_type: 'offline',
+                response_type: 'code',
+              },
+            },
+          }),
+        ]
+      : []),
   ],
 
   // -------------------------------------------------------------------------
