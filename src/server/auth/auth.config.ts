@@ -9,17 +9,16 @@
 import type { NextAuthConfig } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
+import bcrypt from 'bcryptjs'
 import { db } from '@/server/db/client'
 import type { UserRole } from '@prisma/client'
 
-// bcryptjs (pure JS, works on Node + Edge runtime)
+// bcryptjs (pure JS, works on Node + Edge runtime + Netlify bundler)
 async function verifyPassword(hash: string, plain: string): Promise<boolean> {
-  const bcrypt = (await import('bcryptjs')).default
   return bcrypt.compare(plain, hash)
 }
 
 export async function hashPassword(plain: string): Promise<string> {
-  const bcrypt = (await import('bcryptjs')).default
   return bcrypt.hash(plain, 12)
 }
 
