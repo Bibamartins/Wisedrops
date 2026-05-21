@@ -1,5 +1,7 @@
 [build]
-  command = "prisma generate && next build"
+  # db push cria/sincroniza as tabelas e o seed-admin cria o admin (lê ADMIN_PASSWORD do env).
+  # Roda na infra do Netlify, onde NETLIFY_DATABASE_URL é injetada pela extensão Neon.
+  command = "prisma generate && prisma db push --skip-generate && npx tsx prisma/seed-admin.ts && next build"
   publish = ".next"
 
 [build.environment]

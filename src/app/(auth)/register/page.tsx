@@ -416,6 +416,12 @@ export default function RegisterPage() {
               Entrar
             </Link>
           </p>
+          <p className="text-sm text-surface-400 mt-1">
+            É médico?{' '}
+            <Link href="/seja-medico" className="text-sage-700 font-medium hover:underline">
+              Credencie-se aqui
+            </Link>
+          </p>
         </div>
       </div>
     </div>

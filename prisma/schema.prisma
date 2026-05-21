@@ -3,15 +3,17 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
+  previewFeatures = ["fullTextSearch"]
   // native = local dev; rhel-openssl-3.0.x = Netlify Ubuntu runtime
   binaryTargets   = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  extensions = [pgcrypto, pg_trgm]
+  provider  = "postgresql"
+  // Netlify Database (Neon) injects these at build/runtime. gen_random_uuid()
+  // is native in PG13+, so pgcrypto/pg_trgm extensions are not required.
+  url       = env("NETLIFY_DATABASE_URL")
+  directUrl = env("NETLIFY_DATABASE_URL_UNPOOLED")
 }
 
 // ============================================================

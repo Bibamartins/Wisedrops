@@ -148,6 +148,9 @@ export default function LandingPage() {
               <a href="#faq" className="text-sm text-surface-600 hover:text-brand-600 transition">
                 FAQ
               </a>
+              <Link href="/blog" className="text-sm text-surface-600 hover:text-brand-600 transition">
+                Blog
+              </Link>
             </div>
             <div className="flex items-center gap-3">
               <Link
@@ -451,10 +454,10 @@ export default function LandingPage() {
             <div>
               <h4 className="font-heading font-semibold text-white mb-4">Plataforma</h4>
               <div className="space-y-2 text-sm">
-                <a href="#" className="block hover:text-white transition">Como Funciona</a>
-                <a href="#" className="block hover:text-white transition">Para Medicos</a>
-                <a href="#" className="block hover:text-white transition">Produtos</a>
-                <a href="#" className="block hover:text-white transition">Precos</a>
+                <a href="#como-funciona" className="block hover:text-white transition">Como Funciona</a>
+                <a href="#medicos" className="block hover:text-white transition">Para Medicos</a>
+                <Link href="/blog" className="block hover:text-white transition">Blog</Link>
+                <a href="#faq" className="block hover:text-white transition">FAQ</a>
               </div>
             </div>
             <div>
