@@ -171,8 +171,8 @@ export default function LandingPage() {
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-sm font-medium mb-6">
-              <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sage-100 text-sage-700 text-sm font-medium mb-6">
+              <span className="w-2 h-2 rounded-full bg-sage-500 animate-pulse" />
               Regulamentado pela ANVISA
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-bold text-surface-900 leading-tight mb-6">
@@ -191,7 +191,7 @@ export default function LandingPage() {
               </Link>
               <a
                 href="#como-funciona"
-                className="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-surface-200 text-surface-700 font-semibold text-lg hover:border-brand-300 hover:text-brand-600 transition"
+                className="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-sage-300 text-sage-700 font-semibold text-lg hover:border-sage-500 hover:text-sage-800 hover:bg-sage-50 transition"
               >
                 Como Funciona
               </a>
@@ -209,7 +209,7 @@ export default function LandingPage() {
       </section>
 
       {/* Conditions */}
-      <section className="py-16 bg-surface-50 px-4 sm:px-6 lg:px-8">
+      <section className="py-16 bg-sage-50 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-2xl font-heading font-bold text-center text-surface-900 mb-2">
             Tratamos diversas condicoes
@@ -221,7 +221,7 @@ export default function LandingPage() {
             {CONDITIONS.map((c) => (
               <div
                 key={c.label}
-                className="flex flex-col items-center p-4 rounded-xl bg-white border border-surface-200 hover:border-brand-300 hover:shadow-lg transition cursor-pointer"
+                className="flex flex-col items-center p-4 rounded-xl bg-white border border-surface-200 hover:border-sage-400 hover:shadow-lg transition cursor-pointer"
               >
                 <span className="text-3xl mb-2">{c.icon}</span>
                 <span className="font-semibold text-surface-900">{c.label}</span>
@@ -246,7 +246,7 @@ export default function LandingPage() {
               <div key={step.number} className="relative">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-3xl">{step.icon}</span>
-                  <span className="text-4xl font-heading font-bold text-brand-100">
+                  <span className="text-4xl font-heading font-bold text-sage-300">
                     {step.number}
                   </span>
                 </div>
@@ -273,7 +273,7 @@ export default function LandingPage() {
             {DIFFERENTIALS.map((d) => (
               <div
                 key={d.title}
-                className="p-6 rounded-2xl bg-surface-800 border border-surface-700 hover:border-brand-500/50 transition"
+                className="p-6 rounded-2xl bg-surface-800 border border-surface-700 hover:border-sage-500/50 transition"
               >
                 <span className="text-3xl mb-4 block">{d.icon}</span>
                 <h3 className="text-lg font-heading font-semibold text-white mb-2">{d.title}</h3>
@@ -324,7 +324,7 @@ export default function LandingPage() {
                     <td className="py-3 px-4 text-surface-700">{feature as string}</td>
                     <td className="py-3 px-4 text-center">
                       {wise ? (
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-100 text-brand-600">✓</span>
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sage-100 text-sage-700">✓</span>
                       ) : (
                         <span className="text-surface-300">—</span>
                       )}
@@ -352,7 +352,7 @@ export default function LandingPage() {
       </section>
 
       {/* Testimonials */}
-      <section id="depoimentos" className="py-20 bg-surface-50 px-4 sm:px-6 lg:px-8">
+      <section id="depoimentos" className="py-20 bg-sage-50 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-heading font-bold text-center text-surface-900 mb-12">
             O que nossos pacientes dizem
@@ -369,7 +369,7 @@ export default function LandingPage() {
                     <p className="font-semibold text-surface-900">{t.name}</p>
                     <p className="text-xs text-surface-400">{t.condition}</p>
                   </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-brand-50 text-brand-600">
+                  <span className="text-xs px-2 py-1 rounded-full bg-sage-100 text-sage-700">
                     Verificado
                   </span>
                 </div>
@@ -414,7 +414,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="p-12 rounded-3xl gradient-brand text-white">
+          <div className="p-12 rounded-3xl bg-gradient-to-br from-sage-500 to-sage-700 text-white">
             <h2 className="text-3xl font-heading font-bold mb-4">
               Comece seu tratamento hoje
             </h2>
@@ -423,7 +423,7 @@ export default function LandingPage() {
             </p>
             <Link
               href="/register"
-              className="inline-block px-8 py-4 rounded-xl bg-white text-brand-600 font-semibold text-lg hover:bg-white/90 transition shadow-lg"
+              className="inline-block px-8 py-4 rounded-xl bg-brand-600 text-white font-semibold text-lg hover:bg-brand-700 transition shadow-lg shadow-brand-900/20"
             >
               Cadastre-se Gratis
             </Link>

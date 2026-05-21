@@ -242,6 +242,7 @@ export default function DoctorVideoPage() {
     { enabled: !!consultationId }
   )
   const getVideoToken = trpc.consultation.getVideoToken.useMutation()
+  const endConsultation = trpc.consultation.endConsultation.useMutation()
   const [videoToken, setVideoToken] = useState<string | null>(null)
   const [videoRoomUrl, setVideoRoomUrl] = useState<string | null>(null)
 
@@ -285,8 +286,9 @@ export default function DoctorVideoPage() {
 
   const handleCallEnd = useCallback(() => {
     setPageState('post-call')
-    // TODO: wire a tRPC mutation to mark consultation COMPLETED + notify patient
-  }, [])
+    // Mark the consultation completed (idempotent + ownership-checked server-side)
+    endConsultation.mutate({ id: consultationId })
+  }, [consultationId, endConsultation])
 
   if (pageState === 'loading') {
     return (

@@ -134,9 +134,8 @@ export const authConfig: NextAuthConfig = {
   // -------------------------------------------------------------------------
   pages: {
     signIn: '/login',
-    newUser: '/cadastro',
+    newUser: '/register',
     error: '/login',
-    verifyRequest: '/verificar-email',
   },
 
   // -------------------------------------------------------------------------
@@ -166,7 +165,7 @@ export const authConfig: NextAuthConfig = {
         }
 
         // New Google user - redirect to registration to complete profile (CPF, phone, etc.)
-        return '/cadastro?provider=google'
+        return '/register?provider=google'
       }
 
       return true

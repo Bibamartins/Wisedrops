@@ -26,14 +26,9 @@ async function runBookingSideEffects(consultationId: string): Promise<void> {
     timeZone: 'America/Sao_Paulo',
   })
 
-  // 1) Create Daily.co room (writes videoRoomId back to consultation)
-  if (process.env.DAILY_API_KEY && process.env.DAILY_API_KEY !== 'daily_placeholder') {
-    try {
-      await createRoom(consultation.id)
-    } catch (err) {
-      console.error('[booking] Daily.co room creation failed:', err)
-    }
-  }
+  // 1) Video room is created lazily on first join (consultation.getVideoToken),
+  //    not here. Creating it at booking time made the room expire ~90 min later,
+  //    long before consultations scheduled in advance — so it is created on demand.
 
   // 2) Email the doctor
   const doctorEmail = consultation.doctor.user.email
@@ -274,6 +269,51 @@ export const consultationRouter = createTRPCRouter({
       })
     }),
 
+  // Mark a consultation as completed (called when the video call ends)
+  endConsultation: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid(),
+      durationMinutes: z.number().int().min(0).max(600).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const consultation = await ctx.db.consultation.findUnique({
+        where: { id: input.id },
+        include: { patient: true, doctor: true },
+      })
+      if (!consultation) throw new TRPCError({ code: 'NOT_FOUND' })
+
+      const isPatient = consultation.patient.userId === ctx.session.userId
+      const isDoctor = consultation.doctor.userId === ctx.session.userId
+      if (!isPatient && !isDoctor && ctx.session.role !== 'ADMIN') {
+        throw new TRPCError({ code: 'FORBIDDEN' })
+      }
+
+      // Idempotent: never re-complete or revive a cancelled consultation
+      if (
+        consultation.status === ConsultationStatus.COMPLETED ||
+        consultation.status === ConsultationStatus.CANCELLED
+      ) {
+        return consultation
+      }
+
+      const endedAt = new Date()
+      const startedAt = consultation.startedAt ?? consultation.scheduledAt
+      const computedMinutes = Math.max(
+        0,
+        Math.round((endedAt.getTime() - new Date(startedAt).getTime()) / 60000),
+      )
+
+      return ctx.db.consultation.update({
+        where: { id: input.id },
+        data: {
+          status: ConsultationStatus.COMPLETED,
+          startedAt: consultation.startedAt ?? startedAt,
+          endedAt,
+          durationMinutes: input.durationMinutes ?? computedMinutes,
+        },
+      })
+    }),
+
   // List consultations for patient
   listForPatient: patientProcedure
     .input(z.object({
@@ -353,6 +393,16 @@ export const consultationRouter = createTRPCRouter({
         },
       })
       if (!consultation) throw new TRPCError({ code: 'NOT_FOUND' })
+
+      // Access control: only the patient, the doctor of this consultation, or an
+      // admin may read it. Without this, any logged-in user could fetch another
+      // patient's medical records, prescriptions and chat by guessing the ID.
+      const isPatient = consultation.patient.userId === ctx.session.userId
+      const isDoctor = consultation.doctor.userId === ctx.session.userId
+      if (!isPatient && !isDoctor && ctx.session.role !== 'ADMIN') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado.' })
+      }
+
       return consultation
     }),
 

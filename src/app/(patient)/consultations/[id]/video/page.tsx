@@ -398,6 +398,7 @@ export default function VideoConsultationPage() {
     { enabled: !!consultationId && !!user }
   )
   const getVideoToken = trpc.consultation.getVideoToken.useMutation()
+  const endConsultation = trpc.consultation.endConsultation.useMutation()
 
   // Populate `consultation` state from tRPC query (without token yet)
   useEffect(() => {
@@ -444,8 +445,9 @@ export default function VideoConsultationPage() {
 
   const handleCallEnd = useCallback(() => {
     setPageState('post-call')
-    // No tRPC mutation for "end consultation" yet — will be wired in a later sprint.
-  }, [])
+    // Mark the consultation completed (idempotent + ownership-checked server-side)
+    endConsultation.mutate({ id: consultationId })
+  }, [consultationId, endConsultation])
 
   // -------- Loading --------
 

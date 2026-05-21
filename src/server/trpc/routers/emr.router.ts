@@ -2,6 +2,51 @@ import { z } from 'zod'
 import { createTRPCRouter, doctorProcedure, protectedProcedure } from '../trpc'
 import { TRPCError } from '@trpc/server'
 import { RecordType } from '@prisma/client'
+import type { TRPCContext } from '../trpc'
+
+/**
+ * Authorizes access to a patient's clinical data.
+ * - ADMIN: always allowed
+ * - PATIENT: only their own record
+ * - DOCTOR: only patients they have/had a consultation with
+ * Throws FORBIDDEN otherwise. Without this, any logged-in user could read any
+ * patient's full medical timeline or vitals by passing an arbitrary patientId.
+ */
+async function assertCanAccessPatient(
+  ctx: TRPCContext & { session: NonNullable<TRPCContext['session']> },
+  patientId: string,
+): Promise<void> {
+  if (ctx.session.role === 'ADMIN') return
+
+  if (ctx.session.role === 'PATIENT') {
+    const patient = await ctx.db.patient.findUnique({
+      where: { id: patientId },
+      select: { userId: true },
+    })
+    if (!patient || patient.userId !== ctx.session.userId) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado.' })
+    }
+    return
+  }
+
+  if (ctx.session.role === 'DOCTOR') {
+    const doctor = await ctx.db.doctor.findUnique({
+      where: { userId: ctx.session.userId },
+      select: { id: true },
+    })
+    if (!doctor) throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado.' })
+    const link = await ctx.db.consultation.findFirst({
+      where: { doctorId: doctor.id, patientId },
+      select: { id: true },
+    })
+    if (!link) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Voce nao atende este paciente.' })
+    }
+    return
+  }
+
+  throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado.' })
+}
 
 // Structured data schemas per record type
 const vitalSignsSchema = z.object({
@@ -115,7 +160,9 @@ export const emrRouter = createTRPCRouter({
       limit: z.number().min(1).max(100).default(20),
     }))
     .query(async ({ ctx, input }) => {
-      // Verify access: patient can see own records, doctor can see their patients
+      // Verify access: patient sees own records, doctor sees their patients, admin all
+      await assertCanAccessPatient(ctx, input.patientId)
+
       const where = {
         patientId: input.patientId,
         ...(input.recordType && { recordType: input.recordType }),
@@ -152,6 +199,8 @@ export const emrRouter = createTRPCRouter({
       endDate: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
+      await assertCanAccessPatient(ctx, input.patientId)
+
       const records = await ctx.db.medicalRecord.findMany({
         where: {
           patientId: input.patientId,
@@ -179,6 +228,13 @@ export const emrRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const doctor = await ctx.db.doctor.findUnique({ where: { userId: ctx.session.userId } })
       if (!doctor) throw new TRPCError({ code: 'NOT_FOUND' })
+
+      const record = await ctx.db.medicalRecord.findUnique({
+        where: { id: input.id },
+        select: { patientId: true },
+      })
+      if (!record) throw new TRPCError({ code: 'NOT_FOUND' })
+      await assertCanAccessPatient(ctx, record.patientId)
 
       return ctx.db.medicalRecord.update({
         where: { id: input.id },
