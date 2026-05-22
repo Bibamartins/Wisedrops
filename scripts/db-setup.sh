@@ -1,23 +1,25 @@
 #!/usr/bin/env bash
-# Setup do banco no build. NÃO derruba o build se o banco não estiver pronto —
-# assim o app sobe e basta configurar um DATABASE_URL válido + redeploy.
+# Setup do banco no build. NÃO derruba o build se algo falhar.
 set -uo pipefail
 
 if [ -z "${DATABASE_URL:-}" ]; then
-  echo "[db-setup] DATABASE_URL não definido — pulando setup (configure um DATABASE_URL válido no Netlify)."
+  echo "[db-setup] DATABASE_URL não definido — pulando setup."
   exit 0
 fi
 
-# Para Neon: migrações precisam da conexão DIRETA (sem -pooler). Para outros
-# provedores (ex.: Supabase), o replace não tem efeito e usa a URL como está.
-DIRECT_URL="$(node -e "process.stdout.write((process.env.DATABASE_URL||'').replace('-pooler',''))")"
+# Conexão amigável para migração/seed:
+#  - Neon: remove "-pooler" do host (conexão direta).
+#  - Supabase: usa a porta 5432 (session pooler) em vez de 6543 (transaction),
+#    pois o Prisma usa prepared statements.
+MIG_URL="$(node -e "let r=(process.env.DATABASE_URL||''); r=r.replace('-pooler',''); r=r.replace(':6543/',':5432/'); process.stdout.write(r)")"
 
-echo "[db-setup] aplicando schema (prisma db push)..."
-if DATABASE_URL="$DIRECT_URL" npx prisma db push --skip-generate --accept-data-loss; then
-  echo "[db-setup] schema ok — criando/atualizando admin..."
-  DATABASE_URL="$DIRECT_URL" npx tsx prisma/seed-admin.ts || echo "[db-setup] AVISO: seed do admin falhou (segue o build)."
-else
-  echo "[db-setup] AVISO: db push falhou (DATABASE_URL inacessível?). O app vai subir; configure um DATABASE_URL válido e refaça o deploy."
-fi
+echo "[db-setup] sincronizando schema (aditivo/não-destrutivo)..."
+DATABASE_URL="$MIG_URL" npx prisma db push --skip-generate || echo "[db-setup] aviso: db push não aplicou (ok se o schema já existe)."
+
+echo "[db-setup] garantindo o admin..."
+DATABASE_URL="$MIG_URL" npx tsx prisma/seed-admin.ts || echo "[db-setup] aviso: seed do admin falhou."
+
+echo "[db-setup] limpando usuários de teste..."
+DATABASE_URL="$MIG_URL" npx tsx prisma/cleanup-probes.ts || echo "[db-setup] aviso: cleanup falhou."
 
 exit 0
