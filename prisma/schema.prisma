@@ -10,9 +10,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Netlify Database (Neon) injects DATABASE_URL at build + runtime.
+  // Use the Netlify-provisioned Neon DB (injected at build + runtime).
+  // NOTE: a stale DATABASE_URL (Supabase) is also configured but its project is
+  // gone; we deliberately use NETLIFY_DATABASE_URL instead.
   // gen_random_uuid() is native in PG13+, so no extensions are required.
-  url      = env("DATABASE_URL")
+  url      = env("NETLIFY_DATABASE_URL")
 }
 
 // ============================================================
