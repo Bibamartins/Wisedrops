@@ -9,11 +9,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  // Netlify Database (Neon) injects these at build/runtime. gen_random_uuid()
-  // is native in PG13+, so pgcrypto/pg_trgm extensions are not required.
-  url       = env("NETLIFY_DATABASE_URL")
-  directUrl = env("NETLIFY_DATABASE_URL_UNPOOLED")
+  provider = "postgresql"
+  // Netlify Database (Neon) injects DATABASE_URL at build + runtime.
+  // gen_random_uuid() is native in PG13+, so no extensions are required.
+  url      = env("DATABASE_URL")
 }
 
 // ============================================================
