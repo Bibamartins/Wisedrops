@@ -37,7 +37,7 @@ function formatDate(d: string | Date): string {
 }
 
 export default function PatientPrescriptionsPage() {
-  const query = trpc.prescription.listForPatient.useQuery()
+  const query = trpc.prescription.listForPatient.useQuery({ page: 1, limit: 50 })
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const prescriptions = useMemo(() => {

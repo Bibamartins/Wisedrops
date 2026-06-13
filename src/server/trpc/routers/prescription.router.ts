@@ -99,15 +99,13 @@ export const prescriptionRouter = createTRPCRouter({
   // Médico lista suas prescrições.
   listForDoctor: doctorProcedure
     .input(
-      z
-        .object({
-          page: z.number().min(1).default(1),
-          limit: z.number().min(1).max(50).default(20),
-        })
-        .optional(),
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(50).default(20),
+      }),
     )
     .query(async ({ ctx, input }) => {
-      const opts = input ?? { page: 1, limit: 20 }
+      const opts = input
       const doctor = await ctx.db.doctor.findUnique({
         where: { userId: ctx.session.userId },
         select: { id: true },
@@ -132,15 +130,13 @@ export const prescriptionRouter = createTRPCRouter({
   // Paciente lista suas prescrições.
   listForPatient: patientProcedure
     .input(
-      z
-        .object({
-          page: z.number().min(1).default(1),
-          limit: z.number().min(1).max(50).default(20),
-        })
-        .optional(),
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(50).default(20),
+      }),
     )
     .query(async ({ ctx, input }) => {
-      const opts = input ?? { page: 1, limit: 20 }
+      const opts = input
       const patient = await ctx.db.patient.findUnique({
         where: { userId: ctx.session.userId },
         select: { id: true },
