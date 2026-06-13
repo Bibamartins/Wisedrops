@@ -111,37 +111,9 @@ export default function LoginPage() {
             )}
           </form>
 
-          {/* Demo credentials hint */}
-          <div className="mt-4 p-3 rounded-xl bg-brand-50 border border-brand-200">
-            <p className="text-xs font-semibold text-brand-800 mb-1">🔑 Contas de demo (clique para preencher)</p>
-            <div className="space-y-1 text-xs">
-              <button
-                type="button"
-                onClick={() => { setEmail('maria@teste.com'); setPassword('senha123') }}
-                className="block w-full text-left text-brand-700 hover:underline"
-              >
-                Paciente: maria@teste.com / senha123
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('dr.carlos@wisedrops.com.br'); setPassword('senha123') }}
-                className="block w-full text-left text-brand-700 hover:underline"
-              >
-                Medico: dr.carlos@wisedrops.com.br / senha123
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('admin@wisedrops.com.br'); setPassword('senha123') }}
-                className="block w-full text-left text-brand-700 hover:underline"
-              >
-                Admin: admin@wisedrops.com.br / senha123
-              </button>
-            </div>
-          </div>
-
           <div className="mt-6 text-center">
             <p className="text-sm text-surface-500">
-              Nao tem conta?{' '}
+              Não tem conta?{' '}
               <Link href="/register" className="text-brand-600 font-medium hover:underline">
                 Cadastre-se
               </Link>
@@ -149,27 +121,11 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-surface-200" />
-              </div>
-              <div className="relative flex justify-center text-xs text-surface-400">
-                <span className="bg-white px-4">ou</span>
-              </div>
-            </div>
-            <div className="mt-4 space-y-3">
-              <button className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-surface-200 text-surface-700 font-medium hover:bg-surface-50 transition">
-                <span>🔵</span> Continuar com Google
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6">
             <Link
-              href="/register/doctor"
-              className="block w-full text-center py-3 rounded-xl border-2 border-dashed border-surface-200 text-surface-500 text-sm hover:border-brand-300 hover:text-brand-600 transition"
+              href="/seja-medico"
+              className="block w-full text-center py-3 rounded-xl border-2 border-dashed border-surface-200 text-surface-500 text-sm hover:border-sage-400 hover:text-sage-700 transition"
             >
-              Sou medico — Acessar Portal Medico
+              Sou médico — credenciar-se na plataforma
             </Link>
           </div>
         </div>
