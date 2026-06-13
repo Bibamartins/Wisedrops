@@ -1,309 +1,188 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useMemo, useState } from 'react'
+import { trpc } from '@/lib/trpc'
 
-// --- Types ---
-interface Prescription {
-  id: string
-  type: 'A' | 'B'
-  code: string
-  doctor: string
-  specialty: string
-  issuedDate: string
-  expiresDate: string
-  status: 'ACTIVE' | 'EXPIRED' | 'EXPIRING_SOON'
-  products: {
-    name: string
-    dosage: string
-    quantity: string
-  }[]
-  renewalRequested: boolean
+interface ItemView {
+  genericName?: string
+  concentration?: string
+  form?: string
+  dosage?: string
+  frequency?: string
+  quantity?: string
+  duration?: string
+  instructions?: string
 }
 
-// --- Mock Data ---
-const MOCK_PRESCRIPTIONS: Prescription[] = [
-  {
-    id: 'rx-001',
-    type: 'B',
-    code: 'RX-2026-00847',
-    doctor: 'Dr. Carlos Oliveira',
-    specialty: 'Neurologia',
-    issuedDate: '2026-02-15',
-    expiresDate: '2026-08-15',
-    status: 'ACTIVE',
-    products: [
-      { name: 'CBD Full Spectrum 30mg/mL', dosage: '0.5mL 2x ao dia', quantity: '2 frascos (30mL)' },
-    ],
-    renewalRequested: false,
-  },
-  {
-    id: 'rx-002',
-    type: 'A',
-    code: 'RX-2026-00623',
-    doctor: 'Dr. Carlos Oliveira',
-    specialty: 'Neurologia',
-    issuedDate: '2026-01-10',
-    expiresDate: '2026-04-10',
-    status: 'EXPIRING_SOON',
-    products: [
-      { name: 'THC:CBD 1:1 Oleo 10mg/mL', dosage: '0.3mL antes de dormir', quantity: '1 frasco (30mL)' },
-    ],
-    renewalRequested: false,
-  },
-  {
-    id: 'rx-003',
-    type: 'B',
-    code: 'RX-2025-04291',
-    doctor: 'Dra. Ana Beatriz Costa',
-    specialty: 'Psiquiatria',
-    issuedDate: '2025-06-20',
-    expiresDate: '2025-12-20',
-    status: 'EXPIRED',
-    products: [
-      { name: 'CBD Isolado 50mg/mL', dosage: '0.25mL 3x ao dia', quantity: '3 frascos (30mL)' },
-    ],
-    renewalRequested: false,
-  },
-  {
-    id: 'rx-004',
-    type: 'B',
-    code: 'RX-2025-03105',
-    doctor: 'Dr. Carlos Oliveira',
-    specialty: 'Neurologia',
-    issuedDate: '2025-03-01',
-    expiresDate: '2025-09-01',
-    status: 'EXPIRED',
-    products: [
-      { name: 'CBD Full Spectrum 30mg/mL', dosage: '0.25mL 1x ao dia', quantity: '1 frasco (30mL)' },
-    ],
-    renewalRequested: true,
-  },
-]
-
-function getDaysUntil(dateStr: string): number {
-  const target = new Date(dateStr)
-  const now = new Date()
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+const TYPE_LABEL: Record<string, string> = {
+  TYPE_A: 'Receita A',
+  TYPE_B: 'Receita B',
+  SIMPLE: 'Receita simples',
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('pt-BR')
+const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
+  DRAFT: { label: 'Rascunho', cls: 'bg-warning-50 text-warning-700 border-warning-600/30' },
+  SIGNED: { label: 'Vigente', cls: 'bg-success-50 text-success-700 border-success-600/30' },
+  SENT_TO_ANVISA: { label: 'Em análise ANVISA', cls: 'bg-info-50 text-info-700 border-info-600/30' },
+  ANVISA_APPROVED: { label: 'ANVISA aprovou', cls: 'bg-sage-100 text-sage-700 border-sage-400' },
+  ANVISA_REJECTED: { label: 'ANVISA rejeitou', cls: 'bg-error-50 text-error-600 border-error-600/30' },
+  DISPENSED: { label: 'Dispensada', cls: 'bg-surface-100 text-surface-600 border-surface-300' },
+  EXPIRED: { label: 'Expirada', cls: 'bg-surface-100 text-surface-500 border-surface-300' },
+  CANCELLED: { label: 'Cancelada', cls: 'bg-error-50 text-error-600 border-error-600/30' },
 }
 
-export default function PrescriptionsPage() {
-  const [filter, setFilter] = useState<'all' | 'active' | 'expired'>('all')
-  const [prescriptions, setPrescriptions] = useState(MOCK_PRESCRIPTIONS)
+function formatDate(d: string | Date): string {
+  const dt = d instanceof Date ? d : new Date(d)
+  return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+}
 
-  const filtered = prescriptions.filter((rx) => {
-    if (filter === 'active') return rx.status === 'ACTIVE' || rx.status === 'EXPIRING_SOON'
-    if (filter === 'expired') return rx.status === 'EXPIRED'
-    return true
-  })
+export default function PatientPrescriptionsPage() {
+  const query = trpc.prescription.listForPatient.useQuery()
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const activeCount = prescriptions.filter((rx) => rx.status === 'ACTIVE' || rx.status === 'EXPIRING_SOON').length
-  const expiredCount = prescriptions.filter((rx) => rx.status === 'EXPIRED').length
-
-  const handleRequestRenewal = (id: string) => {
-    setPrescriptions((prev) =>
-      prev.map((rx) => (rx.id === id ? { ...rx, renewalRequested: true } : rx))
-    )
-  }
+  const prescriptions = useMemo(() => {
+    return (query.data?.prescriptions ?? []) as Array<{
+      id: string
+      prescriptionType: string
+      status: string
+      items: ItemView[]
+      icdCodes: string[]
+      clinicalJustification: string | null
+      validUntil: string | Date
+      createdAt: string | Date
+      doctor: {
+        crm: string
+        crmState: string
+        user: { fullName: string }
+      }
+    }>
+  }, [query.data])
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-2xl font-heading font-bold text-surface-900">Minhas Receitas</h1>
-        <p className="text-surface-500">Gerencie suas prescricoes de cannabis medicinal</p>
+        <h1 className="text-2xl font-heading font-bold text-surface-900">Minhas receitas</h1>
+        <p className="text-sm text-surface-500">
+          Todas as prescrições que você recebeu pela WiseDrops ficam aqui.
+        </p>
       </div>
 
-      {/* Renewal Alert */}
-      {prescriptions.some((rx) => rx.status === 'EXPIRING_SOON' && !rx.renewalRequested) && (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200">
-          <div className="flex items-start gap-3">
-            <span className="text-2xl">⚠️</span>
-            <div>
-              <p className="font-medium text-amber-800">Receita proxima do vencimento</p>
-              <p className="text-sm text-amber-600 mt-1">
-                Voce tem uma receita que vence em breve. Solicite a renovacao para nao interromper seu tratamento.
-              </p>
-            </div>
-          </div>
+      {query.isLoading && (
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
         </div>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex gap-1 bg-surface-100 rounded-xl p-1">
-        {[
-          { key: 'all' as const, label: `Todas (${prescriptions.length})` },
-          { key: 'active' as const, label: `Ativas (${activeCount})` },
-          { key: 'expired' as const, label: `Expiradas (${expiredCount})` },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setFilter(tab.key)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition ${
-              filter === tab.key
-                ? 'bg-white text-surface-900 shadow-sm'
-                : 'text-surface-500 hover:text-surface-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {query.isError && (
+        <div className="p-4 rounded-xl bg-error-50 border border-error-600/30 text-sm text-error-600">
+          Erro ao carregar: {query.error.message}
+        </div>
+      )}
 
-      {/* Prescriptions List */}
-      <div className="space-y-4">
-        {filtered.map((rx) => {
-          const daysLeft = getDaysUntil(rx.expiresDate)
+      {!query.isLoading && !query.isError && prescriptions.length === 0 && (
+        <div className="p-8 rounded-2xl bg-white border border-surface-200 text-center">
+          <div className="w-12 h-12 mx-auto rounded-full bg-surface-100 flex items-center justify-center mb-3">
+            <span className="text-2xl">📋</span>
+          </div>
+          <p className="text-sm font-medium text-surface-700">Nenhuma receita ainda</p>
+          <p className="text-xs text-surface-500 mt-1">
+            Quando seu médico emitir uma prescrição após a consulta, ela aparecerá aqui.
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {prescriptions.map((p) => {
+          const st = STATUS_LABEL[p.status] ?? STATUS_LABEL.DRAFT
+          const expanded = expandedId === p.id
+          const validUntil = new Date(p.validUntil)
+          const isExpiring =
+            validUntil.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000 &&
+            validUntil.getTime() > Date.now()
           return (
             <div
-              key={rx.id}
-              className={`p-6 rounded-2xl bg-white border shadow-sm ${
-                rx.status === 'EXPIRING_SOON'
-                  ? 'border-amber-300'
-                  : rx.status === 'EXPIRED'
-                  ? 'border-surface-200 opacity-75'
-                  : 'border-surface-200'
-              }`}
+              key={p.id}
+              className="p-5 rounded-2xl bg-white border border-surface-200 shadow-sm"
             >
-              {/* Top Row */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                      rx.type === 'A'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-blue-100 text-blue-700'
-                    }`}
-                  >
-                    Tipo {rx.type}
-                  </span>
-                  <span className="font-mono text-sm text-surface-600">{rx.code}</span>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-surface-500 uppercase">
+                      {TYPE_LABEL[p.prescriptionType] ?? p.prescriptionType}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${st.cls}`}
+                    >
+                      {st.label}
+                    </span>
+                    {isExpiring && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning-50 text-warning-700 border border-warning-600/30">
+                        Vence em breve
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-semibold text-surface-900 mt-1.5">
+                    Dr(a). {p.doctor.user.fullName}
+                  </p>
+                  <p className="text-xs text-surface-500">
+                    CRM {p.doctor.crm}/{p.doctor.crmState} · Emitida em {formatDate(p.createdAt)}
+                  </p>
+                  <p className="text-xs text-surface-500">
+                    Válida até <strong>{formatDate(p.validUntil)}</strong>
+                  </p>
                 </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    rx.status === 'ACTIVE'
-                      ? 'bg-brand-100 text-brand-700'
-                      : rx.status === 'EXPIRING_SOON'
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-surface-100 text-surface-500'
-                  }`}
+                <button
+                  onClick={() => setExpandedId(expanded ? null : p.id)}
+                  className="text-xs text-brand-600 hover:underline font-medium"
                 >
-                  {rx.status === 'ACTIVE' && 'Ativa'}
-                  {rx.status === 'EXPIRING_SOON' && `Vence em ${daysLeft} dias`}
-                  {rx.status === 'EXPIRED' && 'Expirada'}
-                </span>
+                  {expanded ? 'Recolher' : 'Ver itens'}
+                </button>
               </div>
 
-              {/* Doctor Info */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center">
-                  <span className="text-lg">👨‍⚕️</span>
-                </div>
-                <div>
-                  <p className="font-medium text-surface-900">{rx.doctor}</p>
-                  <p className="text-xs text-surface-500">{rx.specialty}</p>
-                </div>
-              </div>
-
-              {/* Products */}
-              <div className="space-y-2 mb-4">
-                {rx.products.map((product, i) => (
-                  <div key={i} className="p-3 rounded-xl bg-surface-50 border border-surface-100">
-                    <p className="font-medium text-sm text-surface-900">{product.name}</p>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-surface-500">
-                      <span>Dosagem: {product.dosage}</span>
-                      <span>Qtd: {product.quantity}</span>
+              {expanded && (
+                <div className="mt-4 pt-4 border-t border-surface-100 space-y-3">
+                  {p.icdCodes && p.icdCodes.length > 0 && (
+                    <p className="text-xs text-surface-500">
+                      <strong className="text-surface-700">CID-10:</strong>{' '}
+                      {p.icdCodes.join(', ')}
+                    </p>
+                  )}
+                  {p.clinicalJustification && (
+                    <div className="p-3 rounded-lg bg-surface-50 text-xs text-surface-600">
+                      <strong className="text-surface-700">Justificativa clínica: </strong>
+                      {p.clinicalJustification}
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Dates */}
-              <div className="flex items-center gap-6 mb-4 text-sm text-surface-600">
-                <div className="flex items-center gap-1.5">
-                  <span>📅</span>
-                  <span>Emissao: {formatDate(rx.issuedDate)}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span>⏳</span>
-                  <span>Validade: {formatDate(rx.expiresDate)}</span>
-                </div>
-              </div>
-
-              {/* Validity Bar */}
-              {(rx.status === 'ACTIVE' || rx.status === 'EXPIRING_SOON') && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-xs text-surface-500 mb-1">
-                    <span>Validade</span>
-                    <span>{daysLeft} dias restantes</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-surface-100">
-                    <div
-                      className={`h-2 rounded-full transition-all ${
-                        daysLeft > 30 ? 'bg-brand-500' : 'bg-amber-500'
-                      }`}
-                      style={{
-                        width: `${Math.max(5, Math.min(100, (daysLeft / 180) * 100))}%`,
-                      }}
-                    />
+                  )}
+                  <div className="space-y-2">
+                    {p.items.map((it, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-lg border border-surface-200 text-xs space-y-0.5"
+                      >
+                        <p className="font-semibold text-surface-900 text-sm">
+                          {it.genericName}
+                          {it.concentration ? ` · ${it.concentration}` : ''}
+                        </p>
+                        {it.form && <p className="text-surface-500">Via: {it.form}</p>}
+                        <p className="text-surface-700">
+                          <strong>{it.dosage}</strong> · {it.frequency}
+                          {it.duration ? ` · por ${it.duration}` : ''}
+                        </p>
+                        {it.quantity && (
+                          <p className="text-surface-500">Quantidade: {it.quantity}</p>
+                        )}
+                        {it.instructions && (
+                          <p className="text-surface-500 italic mt-1">{it.instructions}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
-
-              {/* Actions */}
-              <div className="flex flex-wrap items-center gap-3">
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-surface-200 text-surface-700 text-sm font-medium hover:bg-surface-50 transition">
-                  <span>📥</span> Baixar PDF
-                </button>
-
-                {(rx.status === 'ACTIVE' || rx.status === 'EXPIRING_SOON') && (
-                  <Link
-                    href="/products"
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg gradient-brand text-white text-sm font-medium hover:opacity-90 transition"
-                  >
-                    <span>🛒</span> Comprar Produtos
-                  </Link>
-                )}
-
-                {rx.status === 'EXPIRING_SOON' && !rx.renewalRequested && (
-                  <button
-                    onClick={() => handleRequestRenewal(rx.id)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition"
-                  >
-                    <span>🔄</span> Solicitar Renovacao
-                  </button>
-                )}
-
-                {rx.renewalRequested && (
-                  <span className="flex items-center gap-2 px-4 py-2 text-sm text-amber-600 font-medium">
-                    <span>⏳</span> Renovacao solicitada
-                  </span>
-                )}
-
-                {rx.status === 'EXPIRED' && !rx.renewalRequested && (
-                  <button
-                    onClick={() => handleRequestRenewal(rx.id)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-brand-300 text-brand-700 text-sm font-medium hover:bg-brand-50 transition"
-                  >
-                    <span>📋</span> Agendar Consulta para Renovacao
-                  </button>
-                )}
-              </div>
             </div>
           )
         })}
       </div>
-
-      {filtered.length === 0 && (
-        <div className="text-center py-16">
-          <span className="text-5xl block mb-4">📄</span>
-          <p className="text-surface-500">Nenhuma receita encontrada nesta categoria</p>
-        </div>
-      )}
     </div>
   )
 }
