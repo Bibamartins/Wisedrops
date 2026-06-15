@@ -371,4 +371,66 @@ export const paymentRouter = createTRPCRouter({
 
       return { approveUrl: order.approveUrl, orderId: order.orderId }
     }),
+
+  /**
+   * Cria uma ordem PayPal pra um pedido de produto e devolve o link
+   * de aprovação. O paciente é redirecionado pra esse link; após pagar,
+   * o /api/payments/paypal/return-order captura e marca o Order como PAID.
+   */
+  createOrderPaypalCheckout: patientProcedure
+    .input(z.object({ orderId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!paypalConfigured()) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'PayPal não está configurado (faltam credenciais no servidor).',
+        })
+      }
+
+      const patient = await ctx.db.patient.findUnique({
+        where: { userId: ctx.session.userId },
+        select: { id: true },
+      })
+      if (!patient) throw new TRPCError({ code: 'NOT_FOUND' })
+
+      const order = await ctx.db.order.findUnique({
+        where: { id: input.orderId },
+        include: { items: { include: { product: true } } },
+      })
+      if (!order) throw new TRPCError({ code: 'NOT_FOUND' })
+      if (order.patientId !== patient.id) {
+        throw new TRPCError({ code: 'FORBIDDEN' })
+      }
+      if (order.status !== 'PENDING_PAYMENT') {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'Este pedido já foi pago ou está em outra etapa.',
+        })
+      }
+
+      const siteUrl = process.env.NEXTAUTH_URL || 'https://wisedrops-303.netlify.app'
+      const description = `Pedido WiseDrops #${order.id.slice(0, 8)} (${order.items.length} item)`
+
+      const paypal = await createPaypalOrder({
+        amountCents: order.totalCents,
+        currency: 'BRL',
+        description,
+        referenceId: order.id,
+        returnUrl: `${siteUrl}/api/payments/paypal/return-order?oid=${order.id}`,
+        cancelUrl: `${siteUrl}/api/payments/paypal/cancel?oid=${order.id}`,
+      })
+
+      await ctx.db.payment.create({
+        data: {
+          orderId: order.id,
+          purpose: PaymentPurpose.ORDER,
+          method: PaymentMethod.PAYPAL,
+          status: PaymentStatus.PENDING,
+          amountCents: order.totalCents,
+          metadata: { paypalOrderId: paypal.orderId },
+        },
+      })
+
+      return { approveUrl: paypal.approveUrl, orderId: paypal.orderId }
+    }),
 })

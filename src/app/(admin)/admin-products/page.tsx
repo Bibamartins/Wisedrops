@@ -1,348 +1,313 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Modal } from '@/components/ui/modal'
-import { DataTable, type Column } from '@/components/ui/data-table'
-import { PRODUCTS, formatBRL, type Product } from '@/lib/products-catalog'
+import { useMemo, useState } from 'react'
+import { trpc } from '@/lib/trpc'
 
-// ---------- Admin overlay (stock + availability) ----------
-// The shared catalog doesn't track stock, so admin maintains its own
-// overlay keyed by product id. Persisted in localStorage for the prototype.
+type Origin = 'IMPORTED' | 'DOMESTIC'
+type Category = 'OIL' | 'CAPSULE' | 'SPRAY' | 'TOPICAL' | 'GUMMY' | 'FLOWER' | 'VAPORIZER' | 'OTHER'
+type PrescType = 'TYPE_A' | 'TYPE_B' | 'SIMPLE'
 
-interface StockOverlay {
-  stock: number
-  available: boolean
+interface NewProduct {
+  name: string
+  manufacturer: string
+  origin: Origin
+  category: Category
+  form: string
+  concentration: string
+  priceReais: string
+  rdcClassification: 'RDC327' | 'RDC660'
+  requiresPrescriptionType: PrescType
+  stockQuantity: string
+  description: string
 }
 
-const OVERLAY_KEY = 'wisedrops_admin_stock'
-
-// Seed a few values so the table looks populated on first load
-const INITIAL_OVERLAY: Record<string, StockOverlay> = {
-  'healify-tinc-sleep': { stock: 45, available: true },
-  'healify-tinc-prevent': { stock: 120, available: true },
-  'healify-tinc-slim': { stock: 22, available: true },
-  'healify-tinc-boost': { stock: 8, available: true },
-  'healify-gummy-sleep': { stock: 35, available: true },
-  'healify-gummy-boost': { stock: 0, available: false },
-  'healify-gummy-focus': { stock: 80, available: true },
-  'healify-tab-focus': { stock: 15, available: true },
-  'healify-top-boost': { stock: 50, available: true },
+function emptyDraft(): NewProduct {
+  return {
+    name: '',
+    manufacturer: '',
+    origin: 'DOMESTIC',
+    category: 'OIL',
+    form: 'Sublingual',
+    concentration: '',
+    priceReais: '',
+    rdcClassification: 'RDC327',
+    requiresPrescriptionType: 'TYPE_B',
+    stockQuantity: '0',
+    description: '',
+  }
 }
 
-interface AdminProductRow extends Product {
-  stock: number
-  available: boolean
-  [key: string]: unknown
+const CATEGORY_LABEL: Record<Category, string> = {
+  OIL: 'Óleo',
+  CAPSULE: 'Cápsula',
+  SPRAY: 'Spray',
+  TOPICAL: 'Tópico',
+  GUMMY: 'Goma',
+  FLOWER: 'Flor',
+  VAPORIZER: 'Vaporizador',
+  OTHER: 'Outro',
 }
-
-// ---------- Component ----------
 
 export default function AdminProductsPage() {
-  const [overlay, setOverlay] = useState<Record<string, StockOverlay>>(INITIAL_OVERLAY)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editPrice, setEditPrice] = useState('')
-  const [editStock, setEditStock] = useState('')
+  const listQuery = trpc.product.list.useQuery({ page: 1, limit: 100 })
+  const createMutation = trpc.product.create.useMutation({
+    onSuccess: () => {
+      listQuery.refetch()
+      setOpen(false)
+      setDraft(emptyDraft())
+    },
+  })
+  const updateMutation = trpc.product.update.useMutation({
+    onSuccess: () => listQuery.refetch(),
+  })
 
-  // Hydrate overlay from localStorage
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(OVERLAY_KEY)
-      if (raw) {
-        setOverlay(JSON.parse(raw))
-      } else {
-        localStorage.setItem(OVERLAY_KEY, JSON.stringify(INITIAL_OVERLAY))
-      }
-    } catch {
-      // ignore
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState<NewProduct>(emptyDraft())
+  const [err, setErr] = useState('')
+
+  const products = useMemo(() => listQuery.data?.products ?? [], [listQuery.data])
+
+  const handleCreate = async () => {
+    setErr('')
+    const priceCents = Math.round(parseFloat(draft.priceReais.replace(',', '.')) * 100)
+    if (!draft.name || !draft.manufacturer || !draft.concentration) {
+      setErr('Preencha nome, fabricante e concentração.')
+      return
     }
-  }, [])
-
-  const persist = (next: Record<string, StockOverlay>) => {
-    setOverlay(next)
+    if (!isFinite(priceCents) || priceCents <= 0) {
+      setErr('Preço inválido.')
+      return
+    }
     try {
-      localStorage.setItem(OVERLAY_KEY, JSON.stringify(next))
-    } catch {
-      // ignore
+      await createMutation.mutateAsync({
+        name: draft.name,
+        manufacturer: draft.manufacturer,
+        origin: draft.origin,
+        category: draft.category,
+        form: draft.form,
+        concentration: draft.concentration,
+        priceCents,
+        rdcClassification: draft.rdcClassification,
+        requiresPrescriptionType: draft.requiresPrescriptionType,
+        stockQuantity: parseInt(draft.stockQuantity || '0', 10),
+        description: draft.description || undefined,
+        imageUrls: [],
+      })
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Erro ao criar produto.')
     }
   }
 
-  // Merge shared catalog with admin overlay
-  const rows: AdminProductRow[] = useMemo(
-    () =>
-      PRODUCTS.map((p) => {
-        const o = overlay[p.id] ?? { stock: 0, available: p.inStock }
-        return { ...p, stock: o.stock, available: o.available }
-      }),
-    [overlay]
-  )
-
-  const handleToggleAvailability = (productId: string) => {
-    const current = overlay[productId] ?? { stock: 0, available: true }
-    persist({ ...overlay, [productId]: { ...current, available: !current.available } })
+  const toggleAvailable = async (id: string, current: boolean) => {
+    try {
+      await updateMutation.mutateAsync({ id, data: { isAvailable: !current } })
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erro')
+    }
   }
-
-  const handleSaveEdit = (productId: string) => {
-    const current = overlay[productId] ?? { stock: 0, available: true }
-    const newStock = parseInt(editStock, 10)
-    persist({
-      ...overlay,
-      [productId]: {
-        stock: Number.isNaN(newStock) ? current.stock : newStock,
-        available: current.available,
-      },
-    })
-    setEditingId(null)
-  }
-
-  // ---------- Columns ----------
-  const columns: Column<AdminProductRow>[] = [
-    {
-      key: 'name',
-      header: 'Produto',
-      sortable: true,
-      render: (p) => (
-        <div>
-          <p className="font-medium text-surface-900">{p.name}</p>
-          <p className="text-xs text-surface-500">
-            {p.manufacturer}
-            {p.productLine ? ` — ${p.productLine}` : ''} · {p.volume}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: 'concentration',
-      header: 'Concentracao',
-      render: (p) => <span className="text-xs text-surface-600">{p.concentration}</span>,
-    },
-    {
-      key: 'regulation',
-      header: 'Regulacao',
-      render: (p) => {
-        const isImported = p.origin === 'importado'
-        return (
-          <div className="flex flex-col gap-1">
-            <Badge variant={isImported ? 'warning' : 'info'}>{p.regulation}</Badge>
-            <span className="text-[10px] text-surface-400">
-              {isImported ? 'Importado' : 'Nacional'}
-            </span>
-          </div>
-        )
-      },
-    },
-    {
-      key: 'prescriptionType',
-      header: 'Receita',
-      className: 'text-center',
-      render: (p) => (
-        <Badge variant={p.prescriptionType === 'A' ? 'error' : 'success'}>
-          {p.prescriptionType ?? '—'}
-        </Badge>
-      ),
-    },
-    {
-      key: 'price',
-      header: 'Preco',
-      sortable: true,
-      className: 'text-right',
-      render: (p) =>
-        editingId === p.id ? (
-          <Input
-            value={editPrice}
-            onChange={(e) => setEditPrice(e.target.value)}
-            className="w-28 text-right"
-            placeholder="R$ 0,00"
-          />
-        ) : (
-          <span className="text-sm font-medium text-surface-900">{formatBRL(p.price)}</span>
-        ),
-    },
-    {
-      key: 'stock',
-      header: 'Estoque',
-      sortable: true,
-      className: 'text-center',
-      render: (p) =>
-        editingId === p.id ? (
-          <Input
-            type="number"
-            value={editStock}
-            onChange={(e) => setEditStock(e.target.value)}
-            className="w-20 text-center"
-          />
-        ) : (
-          <span
-            className={`text-sm font-medium ${
-              p.stock === 0
-                ? 'text-red-600'
-                : p.stock < 10
-                ? 'text-amber-600'
-                : 'text-surface-700'
-            }`}
-          >
-            {p.stock} un.
-          </span>
-        ),
-    },
-    {
-      key: 'available',
-      header: 'Disponivel',
-      className: 'text-center',
-      render: (p) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            handleToggleAvailability(p.id)
-          }}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-            p.available ? 'bg-brand-500' : 'bg-surface-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
-              p.available ? 'translate-x-6' : 'translate-x-1'
-            }`}
-          />
-        </button>
-      ),
-    },
-    {
-      key: 'actions',
-      header: 'Acoes',
-      className: 'text-right',
-      render: (p) =>
-        editingId === p.id ? (
-          <div className="flex items-center justify-end gap-2">
-            <Button size="sm" variant="primary" onClick={(e) => { e.stopPropagation(); handleSaveEdit(p.id) }}>
-              Salvar
-            </Button>
-            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingId(null) }}>
-              Cancelar
-            </Button>
-          </div>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation()
-              setEditingId(p.id)
-              setEditPrice(p.price.toFixed(2))
-              setEditStock(String(p.stock))
-            }}
-          >
-            Editar
-          </Button>
-        ),
-    },
-  ]
-
-  const totalProducts = rows.length
-  const availableCount = rows.filter((p) => p.available).length
-  const lowStockCount = rows.filter((p) => p.stock > 0 && p.stock < 10).length
-  const outOfStockCount = rows.filter((p) => p.stock === 0).length
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-surface-900">Gestao de Produtos</h1>
-          <p className="text-surface-500 text-sm">
-            Catalogo oficial Healify — importado via RDC 660
+          <h1 className="text-2xl font-heading font-bold text-surface-900">Catálogo de produtos</h1>
+          <p className="text-sm text-surface-500">
+            Produtos disponíveis para os pacientes comprarem após a prescrição.
           </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>Adicionar Produto</Button>
+        <button
+          onClick={() => setOpen(true)}
+          className="px-4 py-2 rounded-lg gradient-brand text-white text-sm font-medium hover:opacity-90 transition"
+        >
+          + Novo produto
+        </button>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <p className="text-2xl font-heading font-bold text-surface-900">{totalProducts}</p>
-          <p className="text-xs text-surface-500">Total de Produtos</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-2xl font-heading font-bold text-brand-600">{availableCount}</p>
-          <p className="text-xs text-surface-500">Disponiveis</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-2xl font-heading font-bold text-amber-600">{lowStockCount}</p>
-          <p className="text-xs text-surface-500">Estoque Baixo</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-2xl font-heading font-bold text-red-600">{outOfStockCount}</p>
-          <p className="text-xs text-surface-500">Sem Estoque</p>
-        </Card>
-      </div>
-
-      {/* Table */}
-      <Card noPadding>
-        <div className="p-6">
-          <DataTable
-            data={rows}
-            columns={columns}
-            searchable
-            searchPlaceholder="Buscar produto..."
-            searchKeys={['name', 'manufacturer', 'productLine', 'category']}
-            pageSize={10}
-            emptyMessage="Nenhum produto encontrado."
-          />
+      {listQuery.isLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
         </div>
-      </Card>
-
-      {/* Add Product Modal (prototype only) */}
-      <Modal
-        open={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="Adicionar Novo Produto"
-        size="lg"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setShowAddModal(false)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                alert('Em um ambiente real, o produto seria enviado para aprovacao. Este e um prototipo.')
-                setShowAddModal(false)
-              }}
+      ) : products.length === 0 ? (
+        <div className="p-8 rounded-2xl bg-white border border-surface-200 text-center text-sm text-surface-500">
+          Nenhum produto no catálogo ainda. Crie o primeiro acima.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {products.map((p) => (
+            <div
+              key={p.id}
+              className="p-4 rounded-xl bg-white border border-surface-200 flex items-center justify-between gap-3 flex-wrap"
             >
-              Enviar para Aprovacao
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
-            Produtos adicionados passam por validacao regulatoria antes de entrarem no catalogo.
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Nome do Produto" placeholder="Ex: Sleep Broad Spectrum Tincture" />
-            <Input label="Fabricante" placeholder="Ex: Healify" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Concentracao" placeholder="Ex: 1500mg CBD + 500mg CBN" />
-            <Input label="Volume" placeholder="Ex: 30mL" />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <Input label="Preco (R$)" type="number" placeholder="249.60" />
-            <Input label="Estoque Inicial" type="number" placeholder="50" />
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1.5">Tipo de Receita</label>
-              <select className="flex h-10 w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm">
-                <option value="B1">B1 — Branca Especial</option>
-                <option value="A">A — Amarela</option>
-                <option value="C1">C1 — Branca Controlada</option>
-              </select>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold text-surface-900">{p.name}</p>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                      p.isAvailable
+                        ? 'bg-success-50 text-success-700 border-success-600/30'
+                        : 'bg-surface-100 text-surface-500 border-surface-300'
+                    }`}
+                  >
+                    {p.isAvailable ? 'Disponível' : 'Pausado'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-sage-100 text-sage-700">
+                    {p.rdcClassification}
+                  </span>
+                </div>
+                <p className="text-xs text-surface-500">
+                  {p.manufacturer} · {p.concentration} · {p.form} · estoque: {p.stockQuantity}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <p className="font-semibold text-surface-900">
+                  R$ {(p.priceCents / 100).toFixed(2).replace('.', ',')}
+                </p>
+                <button
+                  onClick={() => toggleAvailable(p.id, p.isAvailable)}
+                  className="px-3 py-1.5 rounded-lg border border-surface-200 text-xs font-medium text-surface-700 hover:bg-surface-50 transition"
+                >
+                  {p.isAvailable ? 'Pausar' : 'Ativar'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-heading font-bold text-surface-900 mb-4">Novo produto</h2>
+            <div className="space-y-3">
+              <input
+                placeholder="Nome do produto"
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-surface-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              <input
+                placeholder="Fabricante"
+                value={draft.manufacturer}
+                onChange={(e) => setDraft({ ...draft, manufacturer: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-surface-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <select
+                  value={draft.origin}
+                  onChange={(e) => setDraft({ ...draft, origin: e.target.value as Origin })}
+                  className="px-3 py-2 rounded-lg border border-surface-200 text-sm"
+                >
+                  <option value="DOMESTIC">Nacional (RDC 327)</option>
+                  <option value="IMPORTED">Importado (RDC 660)</option>
+                </select>
+                <select
+                  value={draft.rdcClassification}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      rdcClassification: e.target.value as 'RDC327' | 'RDC660',
+                    })
+                  }
+                  className="px-3 py-2 rounded-lg border border-surface-200 text-sm"
+                >
+                  <option value="RDC327">RDC 327</option>
+                  <option value="RDC660">RDC 660</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <select
+                  value={draft.category}
+                  onChange={(e) =>
+                    setDraft({ ...draft, category: e.target.value as Category })
+                  }
+                  className="px-3 py-2 rounded-lg border border-surface-200 text-sm"
+                >
+                  {(Object.entries(CATEGORY_LABEL) as [Category, string][]).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={draft.requiresPrescriptionType}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      requiresPrescriptionType: e.target.value as PrescType,
+                    })
+                  }
+                  className="px-3 py-2 rounded-lg border border-surface-200 text-sm"
+                >
+                  <option value="TYPE_B">Receita B (THC &lt; 0,2%)</option>
+                  <option value="TYPE_A">Receita A (THC &gt; 0,2%)</option>
+                  <option value="SIMPLE">Receita simples</option>
+                </select>
+              </div>
+              <input
+                placeholder="Forma / via (Ex.: Sublingual)"
+                value={draft.form}
+                onChange={(e) => setDraft({ ...draft, form: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-surface-200 text-sm"
+              />
+              <input
+                placeholder="Concentração (Ex.: 200 mg/mL)"
+                value={draft.concentration}
+                onChange={(e) => setDraft({ ...draft, concentration: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border border-surface-200 text-sm"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  inputMode="decimal"
+                  placeholder="Preço R$ (Ex.: 250,00)"
+                  value={draft.priceReais}
+                  onChange={(e) => setDraft({ ...draft, priceReais: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-surface-200 text-sm"
+                />
+                <input
+                  type="number"
+                  placeholder="Estoque"
+                  value={draft.stockQuantity}
+                  onChange={(e) => setDraft({ ...draft, stockQuantity: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-surface-200 text-sm"
+                />
+              </div>
+              <textarea
+                placeholder="Descrição (opcional)"
+                value={draft.description}
+                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                rows={2}
+                className="w-full px-3 py-2 rounded-lg border border-surface-200 text-sm resize-none"
+              />
+            </div>
+            {err && (
+              <div className="mt-3 p-3 rounded-xl bg-error-50 border border-error-600/30 text-sm text-error-600">
+                {err}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setOpen(false)}
+                className="px-4 py-2 rounded-lg border border-surface-200 text-sm text-surface-700 hover:bg-surface-50 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={createMutation.isLoading}
+                className="px-4 py-2 rounded-lg gradient-brand text-white text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
+              >
+                {createMutation.isLoading ? 'Criando...' : 'Criar produto'}
+              </button>
             </div>
           </div>
         </div>
-      </Modal>
+      )}
     </div>
   )
 }
