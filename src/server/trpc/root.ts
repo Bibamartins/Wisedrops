@@ -11,6 +11,7 @@ import { doctorRouter } from './routers/doctor.router'
 import { adminRouter } from './routers/admin.router'
 import { quizRouter } from './routers/quiz.router'
 import { prescriptionRouter } from './routers/prescription.router'
+import { documentRouter } from './routers/document.router'
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -25,6 +26,7 @@ export const appRouter = createTRPCRouter({
   admin: adminRouter,
   quiz: quizRouter,
   prescription: prescriptionRouter,
+  document: documentRouter,
 })
 
 export type AppRouter = typeof appRouter

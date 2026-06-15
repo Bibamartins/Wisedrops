@@ -110,8 +110,28 @@ model Patient {
   orders               Order[]
   anvisaAuthorizations AnvisaAuthorization[]
   quizResponses        PatientQuiz[]
+  documents            PatientDocument[]
 
   @@map("patients")
+}
+
+// Documentos enviados pelo paciente (RG, comprovante, autorização ANVISA, etc.)
+// Armazenamento: Netlify Blobs (storageKey = chave do blob).
+model PatientDocument {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId   String          @db.Uuid
+  type        String          // 'identity' | 'address_proof' | 'anvisa_auth' | 'medical_report' | etc.
+  fileName    String
+  contentType String
+  sizeBytes   Int
+  storageKey  String          // chave no Netlify Blobs
+  uploadedAt  DateTime        @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([patientId, type])
+  @@map("patient_documents")
 }
 
 // ============================================================
