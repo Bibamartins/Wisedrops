@@ -660,6 +660,7 @@ enum PaymentMethod {
   CREDIT_CARD
   PIX
   BOLETO
+  PAYPAL
 }
 
 enum PaymentStatus {

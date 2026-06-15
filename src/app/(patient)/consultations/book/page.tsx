@@ -879,6 +879,7 @@ export default function BookConsultationPage() {
   const [isProcessing, setIsProcessing] = useState(false)
 
   const bookMutation = trpc.consultation.book.useMutation()
+  const paypalMutation = trpc.payment.createConsultationPaypalCheckout.useMutation()
 
   const handleDoctorSelect = (doctor: DoctorListItem) => {
     setSelectedDoctor(doctor)
@@ -911,7 +912,19 @@ export default function BookConsultationPage() {
       })
 
       setConsultationId(consultation.id)
-      setStep('confirmation')
+
+      // Tenta abrir o checkout do PayPal. Se PayPal não estiver configurado,
+      // cai pra tela de confirmação (consulta criada, sem pagamento).
+      try {
+        const checkout = await paypalMutation.mutateAsync({
+          consultationId: consultation.id,
+        })
+        window.location.href = checkout.approveUrl
+        return // redirecionando, não muda step
+      } catch (payErr) {
+        console.warn('[book] PayPal indisponível, mostrando confirmação:', payErr)
+        setStep('confirmation')
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao processar agendamento. Tente novamente.')
     } finally {

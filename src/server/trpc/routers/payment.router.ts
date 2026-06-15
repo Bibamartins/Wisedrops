@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server'
 import { createTRPCRouter, protectedProcedure, patientProcedure, adminProcedure } from '../trpc'
 import { PaymentService, PaymentError } from '@/server/services/payment.service'
 import { PaymentMethod, PaymentPurpose, PaymentStatus } from '@prisma/client'
+import { createPaypalOrder, paypalConfigured } from '@/server/services/paypal.service'
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -291,5 +292,83 @@ export const paymentRouter = createTRPCRouter({
       ])
 
       return { payments, total, pages: Math.ceil(total / input.limit) }
+    }),
+
+  // -------------------------------------------------------------------------
+  // PayPal — checkout pra consulta
+  // -------------------------------------------------------------------------
+
+  /**
+   * Cria uma ordem PayPal pra uma consulta e devolve o link de aprovação.
+   * O paciente é redirecionado pra esse link; após pagar ele volta pro
+   * /api/payments/paypal/return que captura a ordem e libera a consulta.
+   */
+  createConsultationPaypalCheckout: patientProcedure
+    .input(z.object({ consultationId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!paypalConfigured()) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'PayPal não está configurado (faltam credenciais no servidor).',
+        })
+      }
+
+      // Verifica que a consulta é do paciente logado
+      const patient = await ctx.db.patient.findUnique({
+        where: { userId: ctx.session.userId },
+        select: { id: true },
+      })
+      if (!patient) throw new TRPCError({ code: 'NOT_FOUND', message: 'Paciente não encontrado.' })
+
+      const consultation = await ctx.db.consultation.findUnique({
+        where: { id: input.consultationId },
+        include: {
+          doctor: { include: { user: { select: { fullName: true } } } },
+        },
+      })
+      if (!consultation) throw new TRPCError({ code: 'NOT_FOUND' })
+      if (consultation.patientId !== patient.id) {
+        throw new TRPCError({ code: 'FORBIDDEN' })
+      }
+
+      // Se já pagou, não cria de novo
+      const alreadyPaid = await ctx.db.payment.findFirst({
+        where: {
+          consultations: { some: { id: consultation.id } },
+          status: PaymentStatus.SUCCEEDED,
+        },
+        select: { id: true },
+      })
+      if (alreadyPaid) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'Esta consulta já foi paga.',
+        })
+      }
+
+      const amountCents = consultation.priceCents || 8900
+      const siteUrl = process.env.NEXTAUTH_URL || 'https://wisedrops-303.netlify.app'
+
+      const order = await createPaypalOrder({
+        amountCents,
+        currency: 'BRL',
+        description: `Consulta WiseDrops com Dr(a). ${consultation.doctor.user.fullName}`,
+        referenceId: consultation.id,
+        returnUrl: `${siteUrl}/api/payments/paypal/return?cid=${consultation.id}`,
+        cancelUrl: `${siteUrl}/api/payments/paypal/cancel?cid=${consultation.id}`,
+      })
+
+      await ctx.db.payment.create({
+        data: {
+          purpose: PaymentPurpose.CONSULTATION,
+          method: PaymentMethod.PAYPAL,
+          status: PaymentStatus.PENDING,
+          amountCents,
+          consultations: { connect: { id: consultation.id } },
+          metadata: { paypalOrderId: order.orderId },
+        },
+      })
+
+      return { approveUrl: order.approveUrl, orderId: order.orderId }
     }),
 })
