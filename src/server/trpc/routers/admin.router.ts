@@ -17,6 +17,8 @@ import {
   PaymentStatus,
 } from '@prisma/client'
 import { NotificationService } from '@/server/services/notification.service'
+import { upsertContact } from '@/server/services/hubspot.service'
+import { sendDoctorApprovedEmail } from '@/server/services/email.service'
 
 // ---------------------------------------------------------------------------
 // Validation schemas
@@ -376,6 +378,27 @@ export const adminRouter = createTRPCRouter({
           : `Seu cadastro nao foi aprovado. Motivo: ${input.rejectionReason}. Voce pode reenviar seus documentos para nova analise.`,
         urgent: true,
       }).catch(console.error)
+
+      // E-mail "conta aprovada" + sync HubSpot (status DOCTOR de LEAD → ACTIVE)
+      if (isApproval) {
+        const fullUser = await ctx.db.user.findUnique({
+          where: { id: doctor.userId },
+          select: { email: true, fullName: true },
+        })
+        if (fullUser) {
+          await Promise.allSettled([
+            sendDoctorApprovedEmail({
+              doctorEmail: fullUser.email,
+              doctorName: fullUser.fullName,
+            }),
+            upsertContact({
+              email: fullUser.email,
+              role: 'DOCTOR',
+              status: 'ACTIVE',
+            }),
+          ])
+        }
+      }
 
       return { success: true, decision: input.decision }
     }),

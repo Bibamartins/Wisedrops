@@ -6,6 +6,7 @@
 import type { NextRequest } from 'next/server'
 import { db } from '@/server/db/client'
 import { capturePaypalOrder } from '@/server/services/paypal.service'
+import { sendPatientOrderConfirmedEmail } from '@/server/services/email.service'
 import { PaymentStatus, OrderStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -61,11 +62,37 @@ export async function GET(req: NextRequest) {
             data: {
               orderId,
               status: OrderStatus.PAID,
-              notes: `Pagamento confirmado via PayPal (${paypalOrderId.slice(0, 8)})`,
+              note: `Pagamento confirmado via PayPal (${paypalOrderId.slice(0, 8)})`,
             },
           })
         }
       })
+
+      // Comunicação + HubSpot sync (best-effort)
+      const order = await db.order.findUnique({
+        where: { id: orderId },
+        include: { patient: { include: { user: { select: { fullName: true, email: true } } } } },
+      })
+      if (order) {
+        const patientName = order.patient.user.fullName
+        const patientEmail = order.patient.user.email
+
+        await Promise.allSettled([
+          sendPatientOrderConfirmedEmail({
+            patientEmail,
+            patientName,
+            orderId: order.id,
+            totalCents: order.totalCents,
+          }),
+        ])
+
+        try {
+          const { moveOrderDealStage } = await import('@/server/services/hubspot.service')
+          await moveOrderDealStage({ patientEmail, orderId: order.id, stage: 'PAID' })
+        } catch (e) {
+          console.log('[paypal/return-order] hubspot sync skipped:', (e as Error).message)
+        }
+      }
     }
 
     const redirect = success

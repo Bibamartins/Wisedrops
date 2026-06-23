@@ -16,6 +16,7 @@ import {
 import { OrderStatus, PrescriptionStatus } from '@prisma/client'
 import { NotificationService } from '@/server/services/notification.service'
 import { PrescriptionService } from '@/server/services/prescription.service'
+import { createOrderDeal, moveOrderDealStage } from '@/server/services/hubspot.service'
 
 // ---------------------------------------------------------------------------
 // Validation schemas
@@ -206,6 +207,23 @@ export const orderRouter = createTRPCRouter({
         },
       })
 
+      // 7. HubSpot — cria deal "Pedido Criado" (best-effort)
+      const patientUser = await ctx.db.user.findUnique({
+        where: { id: ctx.session.userId },
+        select: { email: true, fullName: true },
+      })
+      if (patientUser) {
+        await Promise.allSettled([
+          createOrderDeal({
+            patientEmail: patientUser.email,
+            patientName: patientUser.fullName,
+            orderId: order.id,
+            totalCents,
+            stage: 'CREATED',
+          }),
+        ])
+      }
+
       return order
     }),
 
@@ -356,6 +374,21 @@ export const orderRouter = createTRPCRouter({
         },
       })
 
+      // HubSpot — move deal pra Cancelado (best-effort)
+      const patientUser = await ctx.db.user.findUnique({
+        where: { id: ctx.session.userId },
+        select: { email: true },
+      })
+      if (patientUser) {
+        await Promise.allSettled([
+          moveOrderDealStage({
+            patientEmail: patientUser.email,
+            orderId: order.id,
+            stage: 'CANCELLED',
+          }),
+        ])
+      }
+
       return { success: true }
     }),
 
@@ -463,6 +496,36 @@ export const orderRouter = createTRPCRouter({
           ? new Date(input.estimatedDelivery).toLocaleDateString('pt-BR')
           : undefined,
       }).catch(console.error)
+
+      // HubSpot — move deal pra estágio correspondente (best-effort)
+      const stageMap: Partial<Record<OrderStatus, 'PAID' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'>> = {
+        [OrderStatus.PAID]: 'PAID',
+        [OrderStatus.PROCESSING]: 'PROCESSING',
+        [OrderStatus.AWAITING_ANVISA]: 'PROCESSING',
+        [OrderStatus.ANVISA_APPROVED]: 'PROCESSING',
+        [OrderStatus.SHIPPED]: 'SHIPPED',
+        [OrderStatus.IN_TRANSIT]: 'SHIPPED',
+        [OrderStatus.OUT_FOR_DELIVERY]: 'SHIPPED',
+        [OrderStatus.DELIVERED]: 'DELIVERED',
+        [OrderStatus.CANCELLED]: 'CANCELLED',
+        [OrderStatus.REFUNDED]: 'CANCELLED',
+      }
+      const targetStage = stageMap[input.status]
+      if (targetStage) {
+        const patientUser = await ctx.db.user.findUnique({
+          where: { id: order.patient.user.id },
+          select: { email: true },
+        })
+        if (patientUser) {
+          await Promise.allSettled([
+            moveOrderDealStage({
+              patientEmail: patientUser.email,
+              orderId: order.id,
+              stage: targetStage,
+            }),
+          ])
+        }
+      }
 
       // Audit
       await ctx.db.auditLog.create({

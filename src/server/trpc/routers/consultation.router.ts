@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server'
 import { ConsultationStatus, ConsultationType } from '@prisma/client'
 import { createRoom, generateToken } from '@/server/services/video.service'
 import { sendEmail } from '@/server/services/notification.service'
+import { createConsultationDeal, moveConsultationDealStage } from '@/server/services/hubspot.service'
 
 // ---------------------------------------------------------------------------
 // Helper: post-booking side effects (video room + emails)
@@ -191,6 +192,23 @@ export const consultationRouter = createTRPCRouter({
         console.error('[booking] side effects failed:', err)
       )
 
+      // HubSpot — cria deal "Agendada" (best-effort)
+      const patientUser = await ctx.db.user.findUnique({
+        where: { id: ctx.session.userId },
+        select: { email: true, fullName: true },
+      })
+      if (patientUser) {
+        await Promise.allSettled([
+          createConsultationDeal({
+            patientEmail: patientUser.email,
+            patientName: patientUser.fullName,
+            consultationId: consultation.id,
+            priceCents: doctor.consultationPriceCents,
+            stage: 'SCHEDULED',
+          }),
+        ])
+      }
+
       return consultation
     }),
 
@@ -263,10 +281,27 @@ export const consultationRouter = createTRPCRouter({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Consulta nao pode ser cancelada neste status' })
       }
 
-      return ctx.db.consultation.update({
+      const updated = await ctx.db.consultation.update({
         where: { id: input.id },
         data: { status: ConsultationStatus.CANCELLED },
       })
+
+      // HubSpot sync — move pra Cancelada (best-effort)
+      const patientUser = await ctx.db.user.findUnique({
+        where: { id: consultation.patient.userId },
+        select: { email: true },
+      })
+      if (patientUser) {
+        await Promise.allSettled([
+          moveConsultationDealStage({
+            patientEmail: patientUser.email,
+            consultationId: input.id,
+            stage: 'CANCELLED',
+          }),
+        ])
+      }
+
+      return updated
     }),
 
   // Mark a consultation as completed (called when the video call ends)
@@ -303,7 +338,7 @@ export const consultationRouter = createTRPCRouter({
         Math.round((endedAt.getTime() - new Date(startedAt).getTime()) / 60000),
       )
 
-      return ctx.db.consultation.update({
+      const completed = await ctx.db.consultation.update({
         where: { id: input.id },
         data: {
           status: ConsultationStatus.COMPLETED,
@@ -312,6 +347,23 @@ export const consultationRouter = createTRPCRouter({
           durationMinutes: input.durationMinutes ?? computedMinutes,
         },
       })
+
+      // HubSpot — move deal pra Realizada
+      const patientUser = await ctx.db.user.findUnique({
+        where: { id: consultation.patient.userId },
+        select: { email: true },
+      })
+      if (patientUser) {
+        await Promise.allSettled([
+          moveConsultationDealStage({
+            patientEmail: patientUser.email,
+            consultationId: input.id,
+            stage: 'COMPLETED',
+          }),
+        ])
+      }
+
+      return completed
     }),
 
   // List consultations for patient

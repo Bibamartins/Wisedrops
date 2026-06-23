@@ -7,6 +7,7 @@ import {
 } from '../trpc'
 import { TRPCError } from '@trpc/server'
 import { PrescriptionType, PrescriptionStatus } from '@prisma/client'
+import { sendPatientPrescriptionReadyEmail } from '@/server/services/email.service'
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -93,6 +94,22 @@ export const prescriptionRouter = createTRPCRouter({
           signedAt: new Date(),
         },
       })
+
+      // E-mail "receita pronta" pra paciente (best-effort)
+      const patientUser = await ctx.db.patient.findUnique({
+        where: { id: input.patientId },
+        include: { user: { select: { email: true, fullName: true } } },
+      })
+      if (patientUser?.user) {
+        await Promise.allSettled([
+          sendPatientPrescriptionReadyEmail({
+            patientEmail: patientUser.user.email,
+            patientName: patientUser.user.fullName,
+            prescriptionId: prescription.id,
+          }),
+        ])
+      }
+
       return prescription
     }),
 

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { createTRPCRouter, protectedProcedure, patientProcedure, doctorProcedure } from '../trpc'
 import { TRPCError } from '@trpc/server'
+import { trackQuizCompleted } from '@/server/services/hubspot.service'
 
 export const quizRouter = createTRPCRouter({
   // Save quiz response
@@ -43,6 +44,31 @@ export const quizRouter = createTRPCRouter({
             onboardingCompleted: true,
           },
         })
+      }
+
+      // HubSpot sync — manda só categoria + prioridade, nunca a condição crua
+      const user = await ctx.db.user.findUnique({
+        where: { id: ctx.session.userId },
+        select: { email: true, fullName: true, phone: true },
+      })
+      if (user) {
+        const [firstName, ...rest] = (user.fullName ?? '').split(' ')
+        const recMap: Record<string, string> = {
+          high: 'consultar_medico',
+          medium: 'avaliacao_recomendada',
+          low: 'nao_indicado',
+        }
+        await Promise.allSettled([
+          trackQuizCompleted({
+            patientEmail: user.email,
+            firstName,
+            lastName: rest.join(' '),
+            phone: user.phone ?? undefined,
+            rawPriorityCondition: input.priorityCondition,
+            rawRiskLevel: input.riskLevel,
+            recommendation: recMap[input.riskLevel],
+          }),
+        ])
       }
 
       return { quizId: quiz.id }

@@ -3,6 +3,7 @@ import { createTRPCRouter, publicProcedure, protectedProcedure } from '../trpc'
 import { TRPCError } from '@trpc/server'
 import { UserRole, Gender } from '@prisma/client'
 import { hashPassword } from '@/server/auth/auth.config'
+import { upsertContact } from '@/server/services/hubspot.service'
 
 // Validation schemas
 const registerPatientSchema = z.object({
@@ -71,6 +72,19 @@ export const authRouter = createTRPCRouter({
         include: { patient: true },
       })
 
+      // HubSpot sync (best-effort)
+      const [firstName, ...rest] = input.fullName.split(' ')
+      await Promise.allSettled([
+        upsertContact({
+          email: user.email,
+          firstName,
+          lastName: rest.join(' '),
+          phone: input.phone,
+          role: 'PATIENT',
+          status: 'REGISTERED',
+        }),
+      ])
+
       return { userId: user.id, email: user.email, role: user.role }
     }),
 
@@ -116,6 +130,20 @@ export const authRouter = createTRPCRouter({
         },
         include: { doctor: true },
       })
+
+      // HubSpot sync (best-effort) — médico em onboarding
+      const [firstName, ...rest] = input.fullName.split(' ')
+      await Promise.allSettled([
+        upsertContact({
+          email: user.email,
+          firstName,
+          lastName: rest.join(' '),
+          phone: input.phone,
+          state: input.crmState,
+          role: 'DOCTOR',
+          status: 'LEAD', // vira ACTIVE quando admin aprovar
+        }),
+      ])
 
       return { userId: user.id, email: user.email, role: user.role }
     }),
