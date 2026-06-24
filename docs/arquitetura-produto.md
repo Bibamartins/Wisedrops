@@ -291,52 +291,64 @@ Todo estado do produto que o usuário enxerga tem **4 atributos obrigatórios**:
 
 ---
 
-## 6. 5 Decisões arquiteturais (precisa de você)
+## 6. Decisões arquiteturais — TOMADAS (2026-06-24)
 
-### 6.1 O núcleo do produto é longitudinal? (Recomendação: SIM)
-Se sim, todas as features priorizam **continuidade** sobre **conversão única**:
-- Diário de uso vira central (paciente registra dose diária, evolução)
-- Retorno automático em 30/60 dias
-- Reabastecimento 1-click
-- Médico tem alerta de paciente que sumiu
-- Comissão do médico é recorrente (paga por consulta + percentual de produtos de pacientes dele)
+### 6.1 ✅ DECIDIDO: Misto pragmático (transacional evoluindo pra longitudinal)
+Bianca escolheu o caminho cauteloso: começa transacional, evolui pra longitudinal conforme paciente engaja.
 
-Se não, voltamos ao modelo transacional que está hoje, e a economia do negócio segue limitada a CAC × ticket único.
+**Implementação concreta:**
+- NÃO impor diário de uso obrigatório
+- NÃO gamificar tratamento
+- ABRIR portas de engajamento (paciente PODE registrar dose, PODE pedir retorno automático), mas sem forçar
+- Estados "Tratamento ativo" e "Reabastecer em 1 clique" SIM (porque facilitam recompra)
+- Comissão do médico continua por consulta (não recorrente). Bônus de retenção fica pra fase 2.
 
-### 6.2 Paciente é o usuário primário? (Recomendação: SIM)
-Médico é meio, não fim. Toda decisão visual e arquitetural prioriza:
-- "isso ajuda o paciente?" antes de "isso ajuda o médico/admin?"
-- Quando há conflito (ex.: paciente quer cancelar consulta 1h antes; médico vai perder o slot), default protege o paciente.
+### 6.2 ✅ DECIDIDO (implícito): Paciente é primário
+Não está em conflito com o resto. Mantido.
 
-### 6.3 Linear ou hub? (Recomendação: LINEAR pra paciente novo, HUB pra recorrente)
-Paciente novo: **guiado**. Próximo passo claro sempre. Não deixa ele se perder.
-Paciente recorrente: **hub livre**. Ele já sabe onde tudo está.
+### 6.3 ✅ DECIDIDO (implícito): Linear → Hub conforme `onboardingState`
+Paciente novo vê 1 CTA gigante na home. Paciente ativo vê dashboard rico.
 
-Implementação: cada paciente tem um `onboardingState` que muda a home. Paciente em estado "novo" vê só 1 CTA gigante ("Próximo passo: agendar consulta"). Em estado "ativo", vê dashboard rico.
+### 6.4 ✅ DECIDIDO: Marketplace de médicos
+Bianca optou pelo modelo marketplace — cada médico define seu preço, tem perfil público com foto + bio, paciente escolhe por especialidade/preço/avaliação.
 
-### 6.4 Médico é vendedor ou prestador? (Recomendação: PRESTADOR DE RENDA RECORRENTE)
-Não é marketplace de médicos (não competimos entre médicos por preço). É **plataforma de tratamento** onde:
-- Médico é contratado pela WiseDrops (modelo de plataforma, não marketplace)
-- Preço da consulta é tabela única (não cada médico cobra o seu)
-- Médico ganha por consulta + bônus de retenção (paciente que ele atende e volta no mês X paga bônus em Y)
-- Paciente é alocado por **especialidade necessária**, não por escolha de médico
+**Implementação concreta:**
+- Cada `Doctor` mantém seu próprio `consultationPriceCents` (já está no schema, ótimo)
+- Perfil público em `/medicos/[doctorSlug]` com foto, bio, especialidades, avaliações, preço
+- Listagem `/medicos` com filtros (especialidade, preço, avaliação, disponibilidade nas próximas 48h)
+- Comissão WiseDrops: campo `platformFeePercent` no Doctor (default 15%, ajustável por contrato)
+- Avaliações: já existe `rating` na `Consultation`; agregar e exibir no perfil público (média + n.º total)
+- **Guard-rails contra anti-padrões do marketplace puro:**
+  - Preço mínimo configurável por admin (anti-dumping)
+  - Rotação de novos médicos na listagem (não só estrela, dá chance ao novo)
+  - Curadoria de avaliações (admin pode esconder review difamatória)
+  - Médico não pode cancelar consulta confirmada sem penalidade (penaliza no rating + perde % da comissão)
 
-Isso simplifica UI (não precisa de marketplace de busca de médico), aumenta retenção (paciente não fica "comprando preço") e dá previsibilidade ao médico.
+### 6.5 ✅ DECIDIDO: Multi-tenancy AGORA
+Schema multi-tenant entra na próxima onda. WiseDrops vira tenant default.
 
-### 6.5 Multi-tenancy: modelar agora ou depois? (Recomendação: MODELAR AGORA, COM TENANT ÚNICO)
-Adicionar `Tenant`/`Workspace` no schema agora custa 1 sprint. Adicionar depois custa 1 mês de migração.
-
-Implementação mínima:
+**Implementação concreta:**
 ```prisma
 model Tenant {
-  id    String @id @default(uuid())
-  slug  String @unique   // wisedrops, clinicaX, clinicaY
-  name  String
-  brand Json              // logo, cores, nome de exibição
-  ...
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String   @unique
+  name      String
+  brandJson Json     // logo, cores primária/secundária, nome de exibição, dominio
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  doctors    Doctor[]
+  patients   Patient[]
+  products   Product[]
+
+  @@map("tenants")
 }
 ```
-Todo `User`, `Doctor`, `Patient`, `Product` ganha `tenantId`. Pra hoje, tudo é o tenant `wisedrops`. Quando uma clínica quiser ter sua marca, é só criar outro tenant.
+Todo `User`, `Doctor`, `Patient`, `Product` ganha `tenantId String @db.Uuid`. Seed cria tenant default `wisedrops`. Middleware tRPC injeta `tenantId` na context. Queries existentes ganham filtro silencioso por tenant.
+
+---
 
 ---
 
@@ -394,7 +406,7 @@ Quando o paciente comete erro (errou senha, errou CEP), a copy é gentil ("acho 
 
 Coisas que parecem inovação mas vão te queimar:
 
-- **NÃO crie um marketplace de médicos com fotos e avaliações.** Vira commodity, vira competição por preço, vira reclamação. Tabela única, alocação por especialidade.
+- ~~**NÃO crie um marketplace de médicos com fotos e avaliações.**~~ **REVOGADO 2026-06-24**: Bianca optou por marketplace. Anti-padrão se torna marketplace SEM guard-rails. Marketplace COM guard-rails (preço mínimo, rotação de novos, curadoria de avaliações, penalidade por cancelamento) é o caminho.
 - **NÃO gamifique tratamento médico.** Pontos, badges, "streak de 30 dias" — paciente em dor crônica não está procurando jogo. Está procurando alívio.
 - **NÃO faça quiz com mais de 12 perguntas.** Cada pergunta a mais derruba conclusão em 8%. 8 perguntas é o limite.
 - **NÃO mostre receita aprovada como "pronta pra comprar" enquanto ANVISA não autorizou.** Paciente vai clicar comprar e ver erro. Mostra o estado real.
