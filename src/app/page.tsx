@@ -264,23 +264,23 @@ export default function LandingPage() {
       </section>
 
       {/* Differentials */}
-      <section id="diferenciais" className="py-20 bg-surface-900 px-4 sm:px-6 lg:px-8">
+      <section id="diferenciais" className="py-20 bg-sage-700 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-heading font-bold text-center text-white mb-4">
             Por que a WiseDrops e diferente
           </h2>
-          <p className="text-center text-surface-400 mb-12 max-w-xl mx-auto">
+          <p className="text-center text-sage-100 mb-12 max-w-xl mx-auto">
             Nao somos apenas mais um app de consulta. Somos a unica plataforma com acompanhamento medico real.
           </p>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {DIFFERENTIALS.map((d) => (
               <div
                 key={d.title}
-                className="p-6 rounded-2xl bg-surface-800 border border-surface-700 hover:border-sage-500/50 transition"
+                className="p-6 rounded-2xl bg-sage-800 border border-sage-600 hover:border-sage-300 transition"
               >
                 <span className="text-3xl mb-4 block">{d.icon}</span>
                 <h3 className="text-lg font-heading font-semibold text-white mb-2">{d.title}</h3>
-                <p className="text-sm text-surface-400 leading-relaxed">{d.description}</p>
+                <p className="text-sm text-sage-100 leading-relaxed">{d.description}</p>
               </div>
             ))}
           </div>
@@ -435,7 +435,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-surface-900 text-surface-400 py-16 px-4 sm:px-6 lg:px-8">
+      <footer className="bg-sage-700 text-sage-100 py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div>
@@ -477,7 +477,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-          <div className="border-t border-surface-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="border-t border-sage-600 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs">
               &copy; 2024 WiseDrops. Todos os direitos reservados
             </p>
