@@ -135,4 +135,148 @@ export const quizRouter = createTRPCRouter({
 
       return { quizzes, total, pages: Math.ceil(total / input.limit) }
     }),
+
+  /**
+   * Estado do onboarding do paciente (PR 8).
+   * Deduz qual passo da jornada o paciente está, lendo o banco.
+   * Drive da UI linear em /home — paciente novo só vê 1 CTA;
+   * recorrente vê dashboard completo.
+   */
+  getOnboardingState: patientProcedure.query(async ({ ctx }) => {
+    const patient = await ctx.db.patient.findUnique({
+      where: { userId: ctx.session.userId },
+      select: {
+        id: true,
+        primaryConditions: true,
+        onboardingCompleted: true,
+      },
+    })
+    if (!patient) {
+      return {
+        state: 'NEW' as const,
+        context: { patientId: null },
+      }
+    }
+
+    const [latestQuiz, consultations, prescriptions, orders] = await Promise.all([
+      ctx.db.patientQuiz.findFirst({
+        where: { patientId: patient.id },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, completedAt: true, priorityCondition: true },
+      }),
+      ctx.db.consultation.findMany({
+        where: { patientId: patient.id },
+        orderBy: { scheduledAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          status: true,
+          scheduledAt: true,
+          doctor: {
+            select: {
+              id: true,
+              slug: true,
+              user: { select: { fullName: true } },
+            },
+          },
+        },
+      }),
+      ctx.db.prescription.findMany({
+        where: { patientId: patient.id },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        select: { id: true, status: true, validUntil: true, prescriptionType: true },
+      }),
+      ctx.db.order.findMany({
+        where: { patientId: patient.id },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        select: {
+          id: true,
+          status: true,
+          totalCents: true,
+          createdAt: true,
+          estimatedDelivery: true,
+        },
+      }),
+    ])
+
+    // Estado derivado — começa do mais avançado
+    const hasActiveTreatment = orders.some((o) => o.status === 'DELIVERED')
+    const inTransitOrder = orders.find((o) =>
+      ['PAID', 'PROCESSING', 'AWAITING_ANVISA', 'ANVISA_APPROVED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status),
+    )
+    const usableRx = prescriptions.find(
+      (p) => (p.status === 'SIGNED' || p.status === 'ANVISA_APPROVED') && p.validUntil > new Date(),
+    )
+    const upcomingConsultation = consultations.find(
+      (c) => c.status === 'SCHEDULED' || c.status === 'WAITING_ROOM' || c.status === 'IN_PROGRESS',
+    )
+    const completedConsultationWithoutRx = consultations.find(
+      (c) => c.status === 'COMPLETED' && !prescriptions.length,
+    )
+
+    if (hasActiveTreatment) {
+      return {
+        state: 'TREATMENT_ACTIVE' as const,
+        context: { patientId: patient.id },
+      }
+    }
+    if (inTransitOrder) {
+      return {
+        state: 'ORDER_PLACED' as const,
+        context: {
+          patientId: patient.id,
+          orderId: inTransitOrder.id,
+          orderStatus: inTransitOrder.status,
+          estimatedDelivery: inTransitOrder.estimatedDelivery,
+        },
+      }
+    }
+    if (usableRx) {
+      return {
+        state: 'PRESCRIPTION_READY' as const,
+        context: {
+          patientId: patient.id,
+          prescriptionId: usableRx.id,
+        },
+      }
+    }
+    if (completedConsultationWithoutRx) {
+      return {
+        state: 'CONSULTATION_DONE' as const,
+        context: {
+          patientId: patient.id,
+          consultationId: completedConsultationWithoutRx.id,
+        },
+      }
+    }
+    if (upcomingConsultation) {
+      return {
+        state: 'CONSULTATION_BOOKED' as const,
+        context: {
+          patientId: patient.id,
+          consultationId: upcomingConsultation.id,
+          consultationStatus: upcomingConsultation.status,
+          scheduledAt: upcomingConsultation.scheduledAt,
+          doctorName: upcomingConsultation.doctor.user.fullName,
+          doctorSlug: upcomingConsultation.doctor.slug,
+        },
+      }
+    }
+    if (latestQuiz) {
+      return {
+        state: 'QUIZ_DONE' as const,
+        context: {
+          patientId: patient.id,
+          quizCompletedAt: latestQuiz.completedAt,
+          priorityCondition: latestQuiz.priorityCondition,
+        },
+      }
+    }
+    return {
+      state: 'NEW' as const,
+      context: { patientId: patient.id },
+    }
+  }),
 })
