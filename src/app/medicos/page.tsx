@@ -89,7 +89,7 @@ export default function MarketplacePage() {
               </p>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-surface-900 leading-[1.05] tracking-tight">
                 Cannabis medicinal com médicos{' '}
-                <span className="text-brand-700">prescritores</span> de confiança.
+                <span className="text-brand-600">prescritores</span> de confiança.
               </h1>
               <p className="mt-6 text-body-lg text-surface-600 max-w-xl leading-relaxed">
                 Médicos verificados, com experiência em cannabis medicinal. Escolha pelo seu perfil,
