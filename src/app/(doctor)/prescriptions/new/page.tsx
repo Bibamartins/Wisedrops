@@ -1,4 +1,5 @@
 'use client'
+import { Suspense } from 'react'
 
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -40,6 +41,14 @@ const TYPE_LABEL: Record<PrescriptionTypeUI, string> = {
 }
 
 export default function NewPrescriptionPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-surface-500">Carregando…</div>}>
+      <NewPrescriptionInner />
+    </Suspense>
+  )
+}
+
+function NewPrescriptionInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialConsultationId = searchParams?.get('consultation') ?? ''
