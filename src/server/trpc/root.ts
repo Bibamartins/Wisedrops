@@ -12,6 +12,7 @@ import { adminRouter } from './routers/admin.router'
 import { quizRouter } from './routers/quiz.router'
 import { prescriptionRouter } from './routers/prescription.router'
 import { documentRouter } from './routers/document.router'
+import { marketplaceRouter } from './routers/marketplace.router'
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -27,6 +28,7 @@ export const appRouter = createTRPCRouter({
   quiz: quizRouter,
   prescription: prescriptionRouter,
   document: documentRouter,
+  marketplace: marketplaceRouter,
 })
 
 export type AppRouter = typeof appRouter

@@ -225,6 +225,12 @@ model Doctor {
   averageRating         Float                    @default(0)
   totalConsultations    Int                      @default(0)
   isAcceptingPatients   Boolean                  @default(true)
+  // Marketplace público (PR 7) — todos nullable/default-safe pra dados existentes
+  slug                  String?                  @unique
+  photoUrl              String?
+  headline              String?                  @db.VarChar(120)
+  yearsOfExperience     Int?
+  isPublic              Boolean                  @default(true)
   // Multi-tenancy: nullable para compatibilidade com dados anteriores ao PR 5.
   // Sempre setar ao criar Doctor novo.
   tenantId              String?                  @db.Uuid

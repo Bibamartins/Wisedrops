@@ -22,6 +22,9 @@ DATABASE_URL="$MIG_URL" npx tsx prisma/seed-tenant.ts || echo "[db-setup] aviso:
 echo "[db-setup] garantindo o admin..."
 DATABASE_URL="$MIG_URL" npx tsx prisma/seed-admin.ts || echo "[db-setup] aviso: seed do admin falhou."
 
+echo "[db-setup] gerando slugs do marketplace (PR 7)..."
+DATABASE_URL="$MIG_URL" npx tsx prisma/seed-doctor-marketplace.ts || echo "[db-setup] aviso: seed marketplace falhou."
+
 echo "[db-setup] limpando usuários de teste..."
 DATABASE_URL="$MIG_URL" npx tsx prisma/cleanup-probes.ts || echo "[db-setup] aviso: cleanup falhou."
 
