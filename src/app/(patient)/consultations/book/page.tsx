@@ -1,26 +1,9 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  ArrowLeft,
-  Calendar,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Lock,
-  Star,
-  User,
-  Video,
-} from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
 import { trpc } from '@/lib/trpc'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Avatar } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 
 // ============================================================
 // Types
@@ -47,7 +30,7 @@ const SPECIALTY_OPTIONS = [
   { value: '', label: 'Todas as especialidades' },
   { value: 'Neurologia', label: 'Neurologia' },
   { value: 'Psiquiatria', label: 'Psiquiatria' },
-  { value: 'Clinica da Dor', label: 'Clínica da Dor' },
+  { value: 'Clinica da Dor', label: 'Clinica da Dor' },
   { value: 'Oncologia', label: 'Oncologia' },
   { value: 'Geriatria', label: 'Geriatria' },
   { value: 'Reumatologia', label: 'Reumatologia' },
@@ -56,36 +39,35 @@ const SPECIALTY_OPTIONS = [
   { value: 'Dermatologia', label: 'Dermatologia' },
 ]
 
-const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
 const MONTH_LABELS = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ]
 
 // ============================================================
-// Step Indicator — numerado, progressivo
+// Subcomponents
 // ============================================================
+
+// Step indicator
 
 interface StepIndicatorProps {
   currentStep: BookingStep
 }
 
 const STEPS: { key: BookingStep; label: string }[] = [
-  { key: 'doctor', label: 'Médico' },
+  { key: 'doctor', label: 'Medico' },
   { key: 'datetime', label: 'Data e Hora' },
   { key: 'details', label: 'Detalhes' },
   { key: 'payment', label: 'Pagamento' },
-  { key: 'confirmation', label: 'Confirmação' },
+  { key: 'confirmation', label: 'Confirmacao' },
 ]
 
 function StepIndicator({ currentStep }: StepIndicatorProps) {
   const currentIndex = STEPS.findIndex((s) => s.key === currentStep)
 
   return (
-    <nav
-      aria-label="Etapas do agendamento"
-      className="flex items-center justify-center gap-1 mb-8 overflow-x-auto pb-2"
-    >
+    <div className="flex items-center justify-center gap-1 mb-8 overflow-x-auto pb-2">
       {STEPS.map((step, i) => {
         const isActive = i === currentIndex
         const isDone = i < currentIndex
@@ -94,25 +76,26 @@ function StepIndicator({ currentStep }: StepIndicatorProps) {
             <div className="flex flex-col items-center">
               <div
                 className={cn(
-                  'w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-colors duration-150',
+                  'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition',
                   isDone
-                    ? 'bg-success-500 text-white'
+                    ? 'bg-green-500 text-white'
                     : isActive
                       ? 'bg-brand-600 text-white'
-                      : 'bg-surface-100 text-surface-400'
+                      : 'bg-surface-200 text-surface-500'
                 )}
-                aria-current={isActive ? 'step' : undefined}
               >
                 {isDone ? (
-                  <CheckCircle2 size={14} strokeWidth={2.5} aria-hidden="true" />
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
                 ) : (
                   i + 1
                 )}
               </div>
               <span
                 className={cn(
-                  'text-[10px] mt-1 whitespace-nowrap font-medium',
-                  isActive ? 'text-brand-700' : isDone ? 'text-surface-500' : 'text-surface-400'
+                  'text-[10px] mt-1 whitespace-nowrap',
+                  isActive ? 'text-brand-600 font-medium' : 'text-surface-400'
                 )}
               >
                 {step.label}
@@ -121,186 +104,34 @@ function StepIndicator({ currentStep }: StepIndicatorProps) {
             {i < STEPS.length - 1 && (
               <div
                 className={cn(
-                  'w-8 lg:w-12 h-0.5 mx-1 mt-[-12px] transition-colors duration-150',
-                  i < currentIndex ? 'bg-success-500' : 'bg-surface-200'
+                  'w-8 lg:w-12 h-0.5 mx-1 mt-[-12px]',
+                  i < currentIndex ? 'bg-green-500' : 'bg-surface-200'
                 )}
-                aria-hidden="true"
               />
             )}
           </div>
         )
       })}
-    </nav>
-  )
-}
-
-// ============================================================
-// Star Rating display
-// ============================================================
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="flex items-center gap-0.5" aria-label={`Avaliação: ${rating.toFixed(1)} de 5`}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Star
-          key={star}
-          size={12}
-          strokeWidth={0}
-          className={cn(
-            'fill-current',
-            star <= Math.round(rating) ? 'text-warning-500' : 'text-surface-200'
-          )}
-          aria-hidden="true"
-        />
-      ))}
-      <span className="text-xs text-surface-500 ml-1 font-medium">{rating.toFixed(1)}</span>
     </div>
   )
 }
 
-// ============================================================
-// Booking Summary Sidebar — sticky no desktop
-// ============================================================
-
-interface SummaryPanelProps {
-  doctor: DoctorListItem | null
-  date: string | null
-  time: string | null
-  step: BookingStep
-  isProcessing: boolean
-  onConfirmPayment: () => void
-}
-
-function SummaryPanel({
-  doctor,
-  date,
-  time,
-  step,
-  isProcessing,
-  onConfirmPayment,
-}: SummaryPanelProps) {
-  const showCta =
-    step === 'payment' &&
-    doctor !== null &&
-    date !== null &&
-    time !== null
-
-  const formattedDate =
-    date
-      ? new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short',
-        })
-      : null
-
+// Star rating display
+function StarRating({ rating }: { rating: number }) {
   return (
-    <Card
-      variant="elevated"
-      padding="lg"
-      className="lg:sticky lg:top-6 space-y-5"
-    >
-      {/* Eyebrow */}
-      <p className="text-overline text-surface-400 uppercase tracking-widest text-[11px]">
-        Resumo do agendamento
-      </p>
-
-      {/* Médico */}
-      {doctor ? (
-        <div className="flex items-center gap-3">
-          <Avatar
-            src={doctor.avatarUrl ?? undefined}
-            name={doctor.fullName}
-            size="lg"
-          />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-surface-900 truncate">
-              Dr(a). {doctor.fullName}
-            </p>
-            <p className="text-xs text-surface-500 truncate">
-              {doctor.specialty.slice(0, 2).join(', ')}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-surface-100 flex items-center justify-center">
-            <User size={20} strokeWidth={1.5} className="text-surface-300" aria-hidden="true" />
-          </div>
-          <p className="text-sm text-surface-400">Nenhum médico selecionado</p>
-        </div>
-      )}
-
-      {/* Divisor */}
-      <div className="border-t border-surface-100" />
-
-      {/* Data e hora */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm text-surface-600">
-          <Calendar size={14} strokeWidth={1.5} className="text-surface-400 shrink-0" aria-hidden="true" />
-          <span>{formattedDate ?? <span className="text-surface-300 italic">Data não selecionada</span>}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-surface-600">
-          <Clock size={14} strokeWidth={1.5} className="text-surface-400 shrink-0" aria-hidden="true" />
-          <span>{time ?? <span className="text-surface-300 italic">Horário não selecionado</span>}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-surface-600">
-          <Video size={14} strokeWidth={1.5} className="text-surface-400 shrink-0" aria-hidden="true" />
-          <span>Teleconsulta por vídeo</span>
-        </div>
-      </div>
-
-      {/* Divisor */}
-      <div className="border-t border-surface-100" />
-
-      {/* Preço */}
-      {doctor ? (
-        <div className="space-y-1.5">
-          <div className="flex justify-between items-center text-sm text-surface-600">
-            <span>Consulta</span>
-            <span className="font-medium text-surface-700">
-              {formatCurrency(doctor.consultationPriceCents)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold text-surface-900">Total</span>
-            <span className="font-heading text-2xl font-semibold text-brand-700 tracking-tight">
-              {formatCurrency(doctor.consultationPriceCents)}
-            </span>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          <div className="flex justify-between items-center text-sm text-surface-400">
-            <span>Consulta</span>
-            <span>—</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold text-surface-900">Total</span>
-            <span className="font-heading text-2xl font-semibold text-surface-300 tracking-tight">—</span>
-          </div>
-        </div>
-      )}
-
-      {/* CTA de pagamento — aparece apenas na etapa payment */}
-      {showCta && (
-        <>
-          <Button
-            variant="primary"
-            size="lg"
-            className="w-full"
-            loading={isProcessing}
-            onClick={onConfirmPayment}
-          >
-            {!isProcessing && <Lock size={16} strokeWidth={2} aria-hidden="true" />}
-            Confirmar e pagar
-          </Button>
-          <p className="text-[10px] text-surface-400 text-center leading-relaxed">
-            Pagamento seguro. Reembolso integral até 24h antes da consulta.
-          </p>
-        </>
-      )}
-    </Card>
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <svg
+          key={star}
+          className={cn('w-3.5 h-3.5', star <= Math.round(rating) ? 'text-yellow-400' : 'text-surface-200')}
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+      ))}
+      <span className="text-xs text-surface-500 ml-1">{rating.toFixed(1)}</span>
+    </div>
   )
 }
 
@@ -324,11 +155,12 @@ function DoctorSelectionStep({ onSelect }: DoctorStepProps) {
     limit: 50,
   })
 
+  const loading = doctorsQuery.isLoading
   const filteredDoctors: DoctorListItem[] = useMemo(() => {
     const list = doctorsQuery.data?.doctors ?? []
     return list.map((d) => ({
       id: d.id,
-      userId: d.id,
+      userId: d.id, // router doesn't expose userId publicly; id is used as identifier
       fullName: d.fullName,
       avatarUrl: d.avatarUrl ?? null,
       crm: d.crm,
@@ -344,18 +176,14 @@ function DoctorSelectionStep({ onSelect }: DoctorStepProps) {
 
   return (
     <div>
-      {/* Eyebrow + título */}
-      <p className="text-overline text-surface-400 uppercase tracking-widest text-[11px] mb-1">
-        Etapa 1 de 5
-      </p>
-      <h2 className="font-heading text-h2 font-semibold text-surface-900 tracking-tight mb-1">
-        Escolha seu médico
+      <h2 className="text-lg font-heading font-bold text-surface-900 mb-1">
+        Escolha seu medico
       </h2>
       <p className="text-sm text-surface-500 mb-6">
-        Selecione um especialista em cannabis medicinal
+        Selecione um medico especialista em cannabis medicinal
       </p>
 
-      {/* Filtros */}
+      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="flex-1 relative">
           <svg
@@ -364,7 +192,6 @@ function DoctorSelectionStep({ onSelect }: DoctorStepProps) {
             viewBox="0 0 24 24"
             stroke="currentColor"
             strokeWidth={2}
-            aria-hidden="true"
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
           </svg>
@@ -373,15 +200,13 @@ function DoctorSelectionStep({ onSelect }: DoctorStepProps) {
             placeholder="Buscar por nome..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Buscar médico por nome"
-            className="w-full pl-10 pr-4 py-2.5 rounded border border-surface-300 text-sm text-surface-800 bg-white placeholder:text-surface-400 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-colors duration-150"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           />
         </div>
         <select
           value={specialtyFilter}
           onChange={(e) => setSpecialtyFilter(e.target.value)}
-          aria-label="Filtrar por especialidade"
-          className="px-3 py-2.5 rounded border border-surface-300 text-sm text-surface-700 bg-white focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-colors duration-150"
+          className="px-4 py-2.5 rounded-xl border border-surface-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white"
         >
           {SPECIALTY_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -391,70 +216,39 @@ function DoctorSelectionStep({ onSelect }: DoctorStepProps) {
         </select>
       </div>
 
-      {/* STATE-4 */}
-      {doctorsQuery.isLoading && (
-        <div className="space-y-3" aria-label="Carregando médicos" role="status">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} variant="default" padding="default">
-              <div className="flex items-start gap-4">
-                <Skeleton circle width={56} height={56} className="shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-1/2" />
-                  <Skeleton className="h-3 w-1/3" />
-                  <Skeleton className="h-3 w-2/3" />
-                </div>
-              </div>
-            </Card>
-          ))}
+      {/* Doctor List */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
         </div>
-      )}
-
-      {doctorsQuery.error && (
-        <Card variant="default" padding="default" className="border-error-100 bg-error-50">
-          <p className="text-sm text-error-700 font-medium">
-            Erro ao carregar médicos. Tente novamente.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() => doctorsQuery.refetch()}
-          >
-            Tentar novamente
-          </Button>
-        </Card>
-      )}
-
-      {!doctorsQuery.isLoading && !doctorsQuery.error && filteredDoctors.length === 0 && (
-        <Card variant="default" padding="lg" className="text-center">
-          <User size={40} strokeWidth={1} className="mx-auto text-surface-300 mb-3" aria-hidden="true" />
-          <p className="text-sm font-semibold text-surface-700">Nenhum médico encontrado</p>
-          <p className="text-xs text-surface-500 mt-1">
-            Tente outros filtros ou aguarde novos especialistas.
-          </p>
-        </Card>
-      )}
-
-      {!doctorsQuery.isLoading && !doctorsQuery.error && filteredDoctors.length > 0 && (
+      ) : filteredDoctors.length === 0 ? (
+        <div className="text-center py-12">
+          <svg className="w-12 h-12 mx-auto text-surface-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+          </svg>
+          <p className="text-sm text-surface-500">Nenhum medico encontrado com os filtros selecionados</p>
+        </div>
+      ) : (
         <div className="space-y-3">
           {filteredDoctors.map((doctor) => (
             <button
               key={doctor.id}
               onClick={() => onSelect(doctor)}
-              className={cn(
-                'w-full flex items-start gap-4 p-4 rounded-lg border border-surface-200 bg-white text-left',
-                'transition-all duration-150 cursor-pointer',
-                'hover:border-brand-300 hover:shadow-sm',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
-                'active:scale-[0.995]'
-              )}
+              className="w-full flex items-start gap-4 p-4 rounded-xl border border-surface-200 bg-white hover:border-brand-300 hover:shadow-md transition text-left"
             >
-              <Avatar
-                src={doctor.avatarUrl ?? undefined}
-                name={doctor.fullName}
-                size="xl"
-                className="shrink-0"
-              />
+              <div className="w-14 h-14 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+                {doctor.avatarUrl ? (
+                  <img
+                    src={doctor.avatarUrl}
+                    alt={doctor.fullName}
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xl font-bold text-brand-600">
+                    {doctor.fullName.charAt(0)}
+                  </span>
+                )}
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -465,15 +259,18 @@ function DoctorSelectionStep({ onSelect }: DoctorStepProps) {
                       CRM {doctor.crm}/{doctor.crmState}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold text-brand-700 whitespace-nowrap shrink-0">
+                  <span className="text-sm font-bold text-brand-600 whitespace-nowrap">
                     {formatCurrency(doctor.consultationPriceCents)}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {doctor.specialty.map((s) => (
-                    <Badge key={s} variant="neutral" size="sm">
+                    <span
+                      key={s}
+                      className="px-2 py-0.5 rounded-full bg-surface-100 text-[10px] text-surface-600 font-medium"
+                    >
                       {s}
-                    </Badge>
+                    </span>
                   ))}
                 </div>
                 <div className="flex items-center gap-3 mt-2">
@@ -554,8 +351,10 @@ function DateTimeSelectionStep({ doctor, onSelect, onBack }: DateTimeStepProps) 
       setSelectedDate(dateStr)
       setLoadingSlots(true)
       try {
+        // Mock: generate slots deterministically based on date + doctor id
         const seed = `${doctor.id}-${dateStr}`.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
         const allSlots = ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00']
+        // Skip roughly half the slots deterministically
         const slots = allSlots.filter((_, i) => (seed + i) % 3 !== 0)
         await new Promise((r) => setTimeout(r, 200))
         setAvailableSlots(slots)
@@ -573,76 +372,75 @@ function DateTimeSelectionStep({ doctor, onSelect, onBack }: DateTimeStepProps) 
 
   return (
     <div>
-      {/* Back */}
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-brand-700 hover:text-brand-800 mb-5 transition-colors duration-150 font-medium"
+        className="flex items-center gap-1 text-sm text-brand-600 hover:text-brand-700 mb-4"
       >
-        <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />
-        Trocar médico
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+        Trocar medico
       </button>
 
-      {/* Médico selecionado */}
-      <div className="flex items-center gap-3 mb-6 p-4 rounded-lg bg-brand-50 border border-brand-100">
-        <Avatar
-          src={doctor.avatarUrl ?? undefined}
-          name={doctor.fullName}
-          size="md"
-        />
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+          <span className="text-lg font-bold text-brand-600">
+            {doctor.fullName.charAt(0)}
+          </span>
+        </div>
         <div>
-          <p className="text-sm font-semibold text-surface-900">Dr(a). {doctor.fullName}</p>
+          <h3 className="text-sm font-semibold text-surface-900">Dr(a). {doctor.fullName}</h3>
           <p className="text-xs text-surface-500">{doctor.specialty.join(', ')}</p>
         </div>
       </div>
 
-      {/* Eyebrow + título */}
-      <p className="text-overline text-surface-400 uppercase tracking-widest text-[11px] mb-1">
-        Etapa 2 de 5
-      </p>
-      <h2 className="font-heading text-h2 font-semibold text-surface-900 tracking-tight mb-1">
-        Data e horário
+      <h2 className="text-lg font-heading font-bold text-surface-900 mb-1">
+        Escolha a data e horario
       </h2>
       <p className="text-sm text-surface-500 mb-6">
-        Selecione uma data disponível no calendário
+        Selecione uma data disponivel no calendario
       </p>
 
-      {/* Calendário */}
-      <Card variant="default" padding="default" className="mb-6">
-        {/* Navegação de mês */}
+      {/* Calendar */}
+      <div className="bg-white rounded-xl border border-surface-200 p-4 mb-6">
+        {/* Month navigation */}
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={handlePrevMonth}
             disabled={isPrevDisabled}
-            aria-label="Mês anterior"
-            className="p-1.5 rounded-md hover:bg-surface-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
+            className="p-1 rounded-lg hover:bg-surface-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
-            <ChevronLeft size={18} strokeWidth={2} className="text-surface-600" aria-hidden="true" />
+            <svg className="w-5 h-5 text-surface-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
           </button>
           <span className="text-sm font-semibold text-surface-800">
             {MONTH_LABELS[currentMonth]} {currentYear}
           </span>
           <button
             onClick={handleNextMonth}
-            aria-label="Próximo mês"
-            className="p-1.5 rounded-md hover:bg-surface-100 transition-colors duration-150"
+            className="p-1 rounded-lg hover:bg-surface-100 transition"
           >
-            <ChevronRight size={18} strokeWidth={2} className="text-surface-600" aria-hidden="true" />
+            <svg className="w-5 h-5 text-surface-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
           </button>
         </div>
 
-        {/* Labels de dia da semana */}
+        {/* Weekday headers */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {WEEKDAY_LABELS.map((day) => (
-            <div key={day} className="text-center text-[10px] font-semibold text-surface-400 py-1">
+            <div key={day} className="text-center text-[10px] font-medium text-surface-400 py-1">
               {day}
             </div>
           ))}
         </div>
 
-        {/* Grid de dias */}
+        {/* Days grid */}
         <div className="grid grid-cols-7 gap-1">
+          {/* Empty cells for first week offset */}
           {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-            <div key={`empty-${i}`} aria-hidden="true" />
+            <div key={`empty-${i}`} />
           ))}
           {calendarDays.map((day) => {
             const isSelected = selectedDate === day.dateStr
@@ -651,10 +449,8 @@ function DateTimeSelectionStep({ doctor, onSelect, onBack }: DateTimeStepProps) 
                 key={day.date}
                 onClick={() => !day.isPast && handleSelectDate(day.dateStr)}
                 disabled={day.isPast}
-                aria-label={`${day.date} de ${MONTH_LABELS[currentMonth]}${day.isPast ? ', data passada' : ''}${day.isToday ? ', hoje' : ''}`}
-                aria-pressed={isSelected}
                 className={cn(
-                  'h-9 rounded-md text-sm font-medium transition-colors duration-150',
+                  'h-10 rounded-lg text-sm font-medium transition',
                   day.isPast
                     ? 'text-surface-300 cursor-not-allowed'
                     : isSelected
@@ -669,50 +465,35 @@ function DateTimeSelectionStep({ doctor, onSelect, onBack }: DateTimeStepProps) 
             )
           })}
         </div>
-      </Card>
+      </div>
 
-      {/* Horários disponíveis */}
+      {/* Time Slots */}
       {selectedDate && (
         <div>
-          <p className="text-sm font-semibold text-surface-700 mb-3">
-            Horários disponíveis em{' '}
+          <h3 className="text-sm font-semibold text-surface-700 mb-3">
+            Horarios disponiveis em{' '}
             {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', {
               day: 'numeric',
               month: 'long',
             })}
-          </p>
-
-          {loadingSlots && (
-            <div
-              className="grid grid-cols-3 sm:grid-cols-4 gap-2"
-              role="status"
-              aria-label="Carregando horários"
-            >
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 rounded" />
-              ))}
+          </h3>
+          {loadingSlots ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 rounded-full border-2 border-brand-200 border-t-brand-600 animate-spin" />
             </div>
-          )}
-
-          {!loadingSlots && availableSlots.length === 0 && (
-            <p className="text-sm text-surface-500 py-4 text-center">
-              Nenhum horário disponível nesta data. Tente outra data.
-            </p>
-          )}
-
-          {!loadingSlots && availableSlots.length > 0 && (
+          ) : availableSlots.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-surface-500">
+                Nenhum horario disponivel nesta data. Tente outra data.
+              </p>
+            </div>
+          ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
               {availableSlots.map((slot) => (
                 <button
                   key={slot}
                   onClick={() => onSelect(selectedDate, slot)}
-                  aria-label={`Agendar às ${slot}`}
-                  className={cn(
-                    'py-2.5 rounded border border-surface-200 text-sm font-medium text-surface-700',
-                    'transition-all duration-150',
-                    'hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1'
-                  )}
+                  className="py-2.5 rounded-xl border border-surface-200 text-sm font-medium text-surface-700 hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 transition"
                 >
                   {slot}
                 </button>
@@ -751,93 +532,87 @@ function DetailsStep({ doctor, date, time, onSubmit, onBack }: DetailsStepProps)
     <div>
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-brand-700 hover:text-brand-800 mb-5 transition-colors duration-150 font-medium"
+        className="flex items-center gap-1 text-sm text-brand-600 hover:text-brand-700 mb-4"
       >
-        <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
         Voltar
       </button>
 
-      {/* Eyebrow + título */}
-      <p className="text-overline text-surface-400 uppercase tracking-widest text-[11px] mb-1">
-        Etapa 3 de 5
-      </p>
-      <h2 className="font-heading text-h2 font-semibold text-surface-900 tracking-tight mb-6">
+      <h2 className="text-lg font-heading font-bold text-surface-900 mb-6">
         Detalhes da consulta
       </h2>
 
-      {/* Card de resumo */}
-      <Card variant="default" padding="default" className="mb-6 border-brand-100 bg-brand-50">
+      {/* Summary card */}
+      <div className="bg-brand-50 border border-brand-100 rounded-xl p-4 mb-6">
         <div className="flex items-center gap-3 mb-3">
-          <Avatar
-            src={doctor.avatarUrl ?? undefined}
-            name={doctor.fullName}
-            size="md"
-          />
+          <div className="w-10 h-10 rounded-full bg-brand-200 flex items-center justify-center">
+            <span className="text-lg font-bold text-brand-700">
+              {doctor.fullName.charAt(0)}
+            </span>
+          </div>
           <div>
-            <p className="text-sm font-semibold text-surface-900">Dr(a). {doctor.fullName}</p>
+            <p className="text-sm font-semibold text-surface-900">
+              Dr(a). {doctor.fullName}
+            </p>
             <p className="text-xs text-surface-500">{doctor.specialty.join(', ')}</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-4 text-xs text-surface-600">
-          <span className="flex items-center gap-1.5">
-            <Calendar size={13} strokeWidth={1.5} className="text-surface-400" aria-hidden="true" />
+        <div className="flex items-center gap-4 text-xs text-surface-600">
+          <span className="flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+            </svg>
             {formattedDate}
           </span>
-          <span className="flex items-center gap-1.5">
-            <Clock size={13} strokeWidth={1.5} className="text-surface-400" aria-hidden="true" />
+          <span className="flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {time}
           </span>
         </div>
-      </Card>
+      </div>
 
-      {/* Motivo */}
+      {/* Chief Complaint */}
       <div className="mb-6">
-        <label
-          htmlFor="chief-complaint"
-          className="block text-sm font-medium text-surface-700 mb-2"
-        >
+        <label className="block text-sm font-medium text-surface-700 mb-2">
           Motivo principal da consulta
-          <span className="text-surface-400 font-normal ml-1">(opcional)</span>
         </label>
         <textarea
-          id="chief-complaint"
           value={chiefComplaint}
           onChange={(e) => setChiefComplaint(e.target.value)}
           rows={4}
-          placeholder="Descreva brevemente seus sintomas ou o que gostaria de discutir com o médico..."
-          className={cn(
-            'w-full px-3 py-2.5 rounded border border-surface-300 text-sm text-surface-800 bg-white',
-            'placeholder:text-surface-400 resize-none',
-            'focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15',
-            'transition-colors duration-150'
-          )}
+          placeholder="Descreva brevemente o motivo da sua consulta, seus sintomas principais, ou o que gostaria de discutir com o medico..."
+          className="w-full px-4 py-3 rounded-xl border border-surface-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
         />
-        <p className="text-xs text-surface-500 mt-1.5">
-          Ajuda o médico a se preparar melhor para sua consulta.
+        <p className="text-xs text-surface-400 mt-1">
+          Opcional, mas ajuda o medico a se preparar melhor para sua consulta
         </p>
       </div>
 
-      {/* Info sobre teleconsulta */}
-      <Card variant="default" padding="default" className="mb-6 bg-surface-50 border-surface-100">
+      {/* Consultation type info */}
+      <div className="p-4 rounded-xl bg-surface-50 border border-surface-100 mb-6">
         <div className="flex items-center gap-2 mb-2">
-          <Video size={16} strokeWidth={1.5} className="text-brand-600 shrink-0" aria-hidden="true" />
-          <span className="text-sm font-medium text-surface-800">Teleconsulta por vídeo</span>
+          <svg className="w-4 h-4 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+          <span className="text-sm font-medium text-surface-800">Teleconsulta por video</span>
         </div>
-        <ul className="text-xs text-surface-500 space-y-1 ml-6 list-disc">
-          <li>Duração média de 30 minutos</li>
-          <li>Câmera e microfone necessários</li>
-          <li>Receita digital enviada após a consulta (se aplicável)</li>
+        <ul className="text-xs text-surface-500 space-y-1 ml-6">
+          <li>Duracao media de 30 minutos</li>
+          <li>Camera e microfone necessarios</li>
+          <li>Receita digital enviada apos a consulta (se aplicavel)</li>
         </ul>
-      </Card>
+      </div>
 
-      <Button
-        variant="primary"
-        size="lg"
-        className="w-full"
+      <button
         onClick={() => onSubmit(chiefComplaint)}
+        className="w-full py-3 rounded-xl bg-brand-600 text-white font-medium hover:bg-brand-700 transition"
       >
         Continuar para pagamento
-      </Button>
+      </button>
     </div>
   )
 }
@@ -850,10 +625,12 @@ interface PaymentStepProps {
   doctor: DoctorListItem
   date: string
   time: string
+  onConfirm: (paymentMethod: string) => void
   onBack: () => void
+  isProcessing: boolean
 }
 
-function PaymentStep({ doctor, date, time, onBack }: PaymentStepProps) {
+function PaymentStep({ doctor, date, time, onConfirm, onBack, isProcessing }: PaymentStepProps) {
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix')
 
   const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', {
@@ -865,128 +642,135 @@ function PaymentStep({ doctor, date, time, onBack }: PaymentStepProps) {
     <div>
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-brand-700 hover:text-brand-800 mb-5 transition-colors duration-150 font-medium"
+        disabled={isProcessing}
+        className="flex items-center gap-1 text-sm text-brand-600 hover:text-brand-700 mb-4 disabled:opacity-40"
       >
-        <ArrowLeft size={16} strokeWidth={2} aria-hidden="true" />
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
         Voltar
       </button>
 
-      {/* Eyebrow + título */}
-      <p className="text-overline text-surface-400 uppercase tracking-widest text-[11px] mb-1">
-        Etapa 4 de 5
-      </p>
-      <h2 className="font-heading text-h2 font-semibold text-surface-900 tracking-tight mb-6">
+      <h2 className="text-lg font-heading font-bold text-surface-900 mb-6">
         Pagamento
       </h2>
 
-      {/* Resumo do pedido */}
-      <Card variant="default" padding="default" className="mb-6">
-        <p className="text-overline text-surface-400 uppercase tracking-widest text-[11px] mb-3">
-          Resumo do pedido
-        </p>
+      {/* Order summary */}
+      <div className="bg-white rounded-xl border border-surface-200 p-4 mb-6">
+        <h3 className="text-sm font-semibold text-surface-800 mb-3">Resumo do pedido</h3>
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-surface-600">
-              Consulta com Dr(a). {doctor.fullName}
-            </span>
+            <span className="text-surface-600">Consulta com Dr(a). {doctor.fullName}</span>
             <span className="font-medium text-surface-800">
               {formatCurrency(doctor.consultationPriceCents)}
             </span>
           </div>
           <div className="flex justify-between text-xs text-surface-400">
-            <span>
-              {formattedDate} às {time}
-            </span>
-            <span>Vídeo consulta</span>
+            <span>{formattedDate} as {time}</span>
+            <span>Video consulta</span>
           </div>
-          <div className="border-t border-surface-100 pt-3 mt-1">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-semibold text-surface-800">Total</span>
-              <span className="font-heading text-xl font-semibold text-brand-700 tracking-tight">
+          <div className="border-t border-surface-100 pt-2 mt-2">
+            <div className="flex justify-between text-sm font-bold">
+              <span className="text-surface-800">Total</span>
+              <span className="text-brand-600">
                 {formatCurrency(doctor.consultationPriceCents)}
               </span>
             </div>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* Forma de pagamento */}
-      <fieldset className="mb-6">
-        <legend className="text-sm font-semibold text-surface-700 mb-3">
-          Forma de pagamento
-        </legend>
+      {/* Payment method selection */}
+      <div className="mb-6">
+        <h3 className="text-sm font-semibold text-surface-700 mb-3">Forma de pagamento</h3>
         <div className="space-y-2">
           <label
             className={cn(
-              'flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all duration-150',
+              'flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition',
               paymentMethod === 'pix'
                 ? 'border-brand-400 bg-brand-50'
-                : 'border-surface-200 hover:border-surface-300 bg-white'
+                : 'border-surface-200 hover:border-surface-300'
             )}
           >
             <input
               type="radio"
-              name="payment-method"
+              name="payment"
               value="pix"
               checked={paymentMethod === 'pix'}
               onChange={() => setPaymentMethod('pix')}
-              className="w-4 h-4 text-brand-600 focus:ring-brand-500"
+              className="w-4 h-4 text-brand-600"
             />
             <div className="flex-1">
               <p className="text-sm font-medium text-surface-800">PIX</p>
-              <p className="text-xs text-surface-500">Pagamento instantâneo</p>
+              <p className="text-xs text-surface-500">Pagamento instantaneo</p>
             </div>
-            <Badge variant="success" size="sm">Recomendado</Badge>
+            <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+              Recomendado
+            </span>
           </label>
 
           <label
             className={cn(
-              'flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all duration-150',
+              'flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition',
               paymentMethod === 'credit_card'
                 ? 'border-brand-400 bg-brand-50'
-                : 'border-surface-200 hover:border-surface-300 bg-white'
+                : 'border-surface-200 hover:border-surface-300'
             )}
           >
             <input
               type="radio"
-              name="payment-method"
+              name="payment"
               value="credit_card"
               checked={paymentMethod === 'credit_card'}
               onChange={() => setPaymentMethod('credit_card')}
-              className="w-4 h-4 text-brand-600 focus:ring-brand-500"
+              className="w-4 h-4 text-brand-600"
             />
             <div className="flex-1">
-              <p className="text-sm font-medium text-surface-800">Cartão de crédito</p>
+              <p className="text-sm font-medium text-surface-800">Cartao de credito</p>
               <p className="text-xs text-surface-500">Visa, Mastercard, Elo, Amex</p>
             </div>
           </label>
         </div>
-      </fieldset>
-
-      {/* Info contextual por método */}
-      {paymentMethod === 'credit_card' && (
-        <Card variant="default" padding="default" className="mb-6 bg-surface-50 border-surface-100">
-          <p className="text-xs text-surface-500 text-center">
-            Você será redirecionado para o ambiente seguro do Stripe para inserir os dados do cartão.
-          </p>
-        </Card>
-      )}
-
-      {paymentMethod === 'pix' && (
-        <Card variant="default" padding="default" className="mb-6 bg-surface-50 border-surface-100">
-          <p className="text-xs text-surface-500 text-center">
-            Após confirmar, você receberá o código PIX para pagamento. A consulta será confirmada
-            automaticamente após o pagamento.
-          </p>
-        </Card>
-      )}
-
-      {/* Aviso: o CTA principal fica no SummaryPanel no desktop. Aqui fica visível em mobile. */}
-      <div className="lg:hidden">
-        <p className="text-xs text-surface-400 text-center mb-3">
-          Revise o resumo acima e confirme o pagamento.
-        </p>
       </div>
+
+      {/* Credit card form (simplified — full Stripe Elements would go here) */}
+      {paymentMethod === 'credit_card' && (
+        <div className="bg-surface-50 rounded-xl border border-surface-100 p-4 mb-6">
+          <p className="text-xs text-surface-500 text-center">
+            Voce sera redirecionado para o ambiente seguro do Stripe para inserir os dados do cartao.
+          </p>
+        </div>
+      )}
+
+      {/* PIX info */}
+      {paymentMethod === 'pix' && (
+        <div className="bg-surface-50 rounded-xl border border-surface-100 p-4 mb-6">
+          <p className="text-xs text-surface-500 text-center">
+            Apos confirmar, voce recebera o codigo PIX para pagamento. A consulta sera confirmada
+            automaticamente apos o pagamento.
+          </p>
+        </div>
+      )}
+
+      <button
+        onClick={() => onConfirm(paymentMethod)}
+        disabled={isProcessing}
+        className="w-full py-3 rounded-xl bg-brand-600 text-white font-medium hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {isProcessing ? (
+          <>
+            <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            Processando...
+          </>
+        ) : (
+          <>Confirmar e pagar {formatCurrency(doctor.consultationPriceCents)}</>
+        )}
+      </button>
+
+      <p className="text-[10px] text-surface-400 text-center mt-3">
+        Pagamento processado com seguranca via Stripe. Politica de cancelamento: reembolso integral
+        ate 24h antes da consulta.
+      </p>
     </div>
   )
 }
@@ -1014,74 +798,75 @@ function ConfirmationStep({ doctor, date, time, consultationId }: ConfirmationSt
 
   return (
     <div className="text-center">
-      {/* Ícone de sucesso */}
-      <div
-        className="w-20 h-20 mx-auto rounded-full bg-success-100 flex items-center justify-center mb-6"
-        aria-hidden="true"
-      >
-        <CheckCircle2 size={40} strokeWidth={1.5} className="text-success-600" />
+      <div className="w-20 h-20 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-6">
+        <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
       </div>
 
-      <h2 className="font-heading text-h1 font-semibold text-surface-900 tracking-tight mb-2 text-balance">
-        Consulta agendada!
+      <h2 className="text-xl font-heading font-bold text-surface-900 mb-2">
+        Consulta agendada com sucesso!
       </h2>
-      <p className="text-sm text-surface-500 mb-8 max-w-xs mx-auto text-balance">
-        Você receberá uma confirmação por e-mail e uma notificação antes da consulta.
+      <p className="text-sm text-surface-500 mb-8">
+        Voce recebera uma confirmacao por e-mail e notificacao antes da consulta.
       </p>
 
-      {/* Card com detalhes */}
-      <Card variant="elevated" padding="lg" className="mb-8 text-left">
+      <div className="bg-white rounded-xl border border-surface-200 p-6 mb-8 text-left">
         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-surface-100">
-          <Avatar
-            src={doctor.avatarUrl ?? undefined}
-            name={doctor.fullName}
-            size="lg"
-          />
+          <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center">
+            <span className="text-xl font-bold text-brand-600">
+              {doctor.fullName.charAt(0)}
+            </span>
+          </div>
           <div>
-            <p className="text-sm font-semibold text-surface-900">Dr(a). {doctor.fullName}</p>
+            <p className="text-sm font-semibold text-surface-900">
+              Dr(a). {doctor.fullName}
+            </p>
             <p className="text-xs text-surface-500">{doctor.specialty.join(', ')}</p>
           </div>
         </div>
-        <div className="space-y-2.5 text-sm">
+        <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2 text-surface-600">
-            <Calendar size={15} strokeWidth={1.5} className="text-surface-400 shrink-0" aria-hidden="true" />
+            <svg className="w-4 h-4 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+            </svg>
             {formattedDate}
           </div>
           <div className="flex items-center gap-2 text-surface-600">
-            <Clock size={15} strokeWidth={1.5} className="text-surface-400 shrink-0" aria-hidden="true" />
-            {time} (horário de Brasília)
+            <svg className="w-4 h-4 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {time} (horario de Brasilia)
           </div>
           <div className="flex items-center gap-2 text-surface-600">
-            <Video size={15} strokeWidth={1.5} className="text-surface-400 shrink-0" aria-hidden="true" />
-            Teleconsulta por vídeo
+            <svg className="w-4 h-4 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            Teleconsulta por video
           </div>
         </div>
-      </Card>
+      </div>
 
       <div className="space-y-3">
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full"
+        <button
           onClick={() => router.push(`/consultations/${consultationId}`)}
+          className="w-full py-3 rounded-xl bg-brand-600 text-white font-medium hover:bg-brand-700 transition"
         >
           Ver detalhes da consulta
-        </Button>
-        <Button
-          variant="outline"
-          size="lg"
-          className="w-full"
+        </button>
+        <button
           onClick={() => router.push('/consultations')}
+          className="w-full py-3 rounded-xl border border-surface-200 text-surface-700 font-medium hover:bg-surface-50 transition"
         >
           Minhas consultas
-        </Button>
+        </button>
       </div>
     </div>
   )
 }
 
 // ============================================================
-// Main Booking Page — Layout 2 colunas desktop
+// Main Booking Page
 // ============================================================
 
 export default function BookConsultationPage() {
@@ -1112,11 +897,12 @@ export default function BookConsultationPage() {
     setStep('payment')
   }
 
-  const handlePaymentConfirm = async () => {
+  const handlePaymentConfirm = async (_paymentMethod: string) => {
     if (!selectedDoctor || !selectedDate || !selectedTime) return
     setIsProcessing(true)
 
     try {
+      // Combine date + time into ISO datetime (local tz) for backend
       const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`).toISOString()
       const consultation = await bookMutation.mutateAsync({
         doctorId: selectedDoctor.id,
@@ -1127,12 +913,14 @@ export default function BookConsultationPage() {
 
       setConsultationId(consultation.id)
 
+      // Tenta abrir o checkout do PayPal. Se PayPal não estiver configurado,
+      // cai pra tela de confirmação (consulta criada, sem pagamento).
       try {
         const checkout = await paypalMutation.mutateAsync({
           consultationId: consultation.id,
         })
         window.location.href = checkout.approveUrl
-        return
+        return // redirecionando, não muda step
       } catch (payErr) {
         console.warn('[book] PayPal indisponível, mostrando confirmação:', payErr)
         setStep('confirmation')
@@ -1144,111 +932,51 @@ export default function BookConsultationPage() {
     }
   }
 
-  // Etapa de confirmação — layout centralizado sem sidebar
-  if (step === 'confirmation' && selectedDoctor && selectedDate && selectedTime && consultationId) {
-    return (
-      <div className="max-w-lg mx-auto px-4 py-8">
+  return (
+    <div className="max-w-2xl mx-auto">
+      <StepIndicator currentStep={step} />
+
+      {step === 'doctor' && (
+        <DoctorSelectionStep onSelect={handleDoctorSelect} />
+      )}
+
+      {step === 'datetime' && selectedDoctor && (
+        <DateTimeSelectionStep
+          doctor={selectedDoctor}
+          onSelect={handleDateTimeSelect}
+          onBack={() => setStep('doctor')}
+        />
+      )}
+
+      {step === 'details' && selectedDoctor && selectedDate && selectedTime && (
+        <DetailsStep
+          doctor={selectedDoctor}
+          date={selectedDate}
+          time={selectedTime}
+          onSubmit={handleDetailsSubmit}
+          onBack={() => setStep('datetime')}
+        />
+      )}
+
+      {step === 'payment' && selectedDoctor && selectedDate && selectedTime && (
+        <PaymentStep
+          doctor={selectedDoctor}
+          date={selectedDate}
+          time={selectedTime}
+          onConfirm={handlePaymentConfirm}
+          onBack={() => setStep('details')}
+          isProcessing={isProcessing}
+        />
+      )}
+
+      {step === 'confirmation' && selectedDoctor && selectedDate && selectedTime && consultationId && (
         <ConfirmationStep
           doctor={selectedDoctor}
           date={selectedDate}
           time={selectedTime}
           consultationId={consultationId}
         />
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-surface-50">
-      {/* PageHeader */}
-      <header className="py-6 px-4 sm:px-6 border-b border-surface-100 bg-white">
-        <nav
-          aria-label="Navegação de migalhas"
-          className="flex items-center gap-1 mb-2 text-xs text-surface-400"
-        >
-          <span>Consultas</span>
-          <ChevronRight size={12} strokeWidth={1.5} className="text-surface-300" aria-hidden="true" />
-          <span className="text-surface-600">Agendar</span>
-        </nav>
-        <h1 className="font-heading text-2xl font-semibold text-surface-900 tracking-tight">
-          Agendar consulta
-        </h1>
-        <p className="mt-1 text-sm text-surface-500">
-          Escolha seu médico, horário e finalize o pagamento com segurança.
-        </p>
-      </header>
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        {/* Step Indicator */}
-        <StepIndicator currentStep={step} />
-
-        {/* Layout 2 colunas */}
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* Coluna esquerda — conteúdo principal (60%) */}
-          <div className="w-full lg:w-[60%] min-w-0">
-            {step === 'doctor' && (
-              <DoctorSelectionStep onSelect={handleDoctorSelect} />
-            )}
-
-            {step === 'datetime' && selectedDoctor && (
-              <DateTimeSelectionStep
-                doctor={selectedDoctor}
-                onSelect={handleDateTimeSelect}
-                onBack={() => setStep('doctor')}
-              />
-            )}
-
-            {step === 'details' && selectedDoctor && selectedDate && selectedTime && (
-              <DetailsStep
-                doctor={selectedDoctor}
-                date={selectedDate}
-                time={selectedTime}
-                onSubmit={handleDetailsSubmit}
-                onBack={() => setStep('datetime')}
-              />
-            )}
-
-            {step === 'payment' && selectedDoctor && selectedDate && selectedTime && (
-              <>
-                <PaymentStep
-                  doctor={selectedDoctor}
-                  date={selectedDate}
-                  time={selectedTime}
-                  onBack={() => setStep('details')}
-                />
-                {/* CTA em mobile (abaixo do form de pagamento) */}
-                <div className="lg:hidden mt-6 space-y-3">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="w-full"
-                    loading={isProcessing}
-                    onClick={handlePaymentConfirm}
-                    iconLeft={!isProcessing ? <Lock size={18} strokeWidth={2} /> : undefined}
-                  >
-                    Confirmar e pagar
-                  </Button>
-                  <p className="text-[10px] text-surface-400 text-center leading-relaxed">
-                    Pagamento seguro. Reembolso integral até 24h antes da consulta.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Coluna direita — Summary sticky (40%) */}
-          <div className="w-full lg:w-[40%] shrink-0">
-            <SummaryPanel
-              doctor={selectedDoctor}
-              date={selectedDate}
-              time={selectedTime}
-              step={step}
-              isProcessing={isProcessing}
-              onConfirmPayment={handlePaymentConfirm}
-            />
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

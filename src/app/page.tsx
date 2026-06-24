@@ -2,64 +2,96 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import {
-  Stethoscope,
-  ClipboardList,
-  Pill,
-  Calendar,
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle,
-  Star,
-} from 'lucide-react'
 
-// ---------------------------------------------------------------------------
-// Data
-// ---------------------------------------------------------------------------
+const CONDITIONS = [
+  { icon: '😴', label: 'Insonia', description: 'Dificuldade para dormir' },
+  { icon: '😰', label: 'Ansiedade', description: 'Transtorno de ansiedade' },
+  { icon: '🤕', label: 'Dor Cronica', description: 'Dor persistente' },
+  { icon: '😔', label: 'Depressao', description: 'Transtorno depressivo' },
+  { icon: '⚡', label: 'Epilepsia', description: 'Crises convulsivas' },
+  { icon: '🧠', label: 'Autismo', description: 'TEA - Espectro Autista' },
+  { icon: '💆', label: 'Fibromialgia', description: 'Dor musculoesqueletica' },
+  { icon: '🤧', label: 'Enxaqueca', description: 'Cefaleia cronica' },
+]
 
-const HOW_IT_WORKS = [
+const STEPS = [
   {
-    icon: ClipboardList,
-    step: '01',
-    title: 'Quiz de avaliacao',
-    description:
-      'Responda 8 perguntas sobre sua condicao e objetivos. Identificamos o perfil clinico e recomendamos o especialista ideal.',
+    number: '01',
+    title: 'Quiz de Avaliacao Gratuito',
+    description: 'Responda 8 perguntas sobre sua condicao, historico e objetivos. Nossa IA analisa seu perfil, identifica o nivel de atencao e recomenda o especialista ideal.',
+    icon: '📋',
   },
   {
-    icon: Stethoscope,
-    step: '02',
-    title: 'Consulta por video',
-    description:
-      'Atendimento humanizado com medico certificado em cannabis medicinal. Voce e visto, ouvido e avaliado — nao um ticket de suporte.',
+    number: '02',
+    title: 'Consulta por Video',
+    description: 'Consulte-se por video com um medico certificado em cannabis medicinal. Diferente de chats genericos — aqui voce tem atendimento humanizado.',
+    icon: '🎥',
   },
   {
-    icon: Pill,
-    step: '03',
-    title: 'Tratamento prescrito',
-    description:
-      'Receita digital validada e autorizacao ANVISA automatizada. Produtos nacionais (RDC 327) e importados (RDC 660).',
+    number: '03',
+    title: 'Receita Digital + ANVISA',
+    description: 'Receba sua receita digital validada e a autorizacao ANVISA automatizada. Suportamos produtos nacionais (RDC 327) E importados (RDC 660).',
+    icon: '📄',
+  },
+  {
+    number: '04',
+    title: 'Acompanhamento Continuo',
+    description: 'Acompanhe sua evolucao com prontuario eletronico, diario de sintomas e monitoramento de aderencia. Seu medico acompanha tudo em tempo real.',
+    icon: '📊',
   },
 ]
 
-const FEATURES = [
+const DIFFERENTIALS = [
   {
-    icon: FileText,
-    title: 'Prontuario eletronico real',
-    description:
-      'Historico medico completo, resultados de exames e evolucao clinica acessiveis ao medico e ao paciente.',
+    title: 'Prontuario Eletronico Real',
+    description: 'Nao apenas um chat. Historico medico completo, resultados de exames e evolucao clinica acessiveis ao medico e ao paciente.',
+    icon: '🏥',
   },
   {
-    icon: Calendar,
-    title: 'Acompanhamento continuo',
-    description:
-      'Lembretes de dosagem, diario de sintomas e monitoramento de aderencia. Seu medico acompanha em tempo real.',
+    title: 'Consulta por Video',
+    description: 'Atendimento humanizado por videochamada, nao por chat automatizado. Seu medico te ve, te ouve e te examina.',
+    icon: '📹',
   },
   {
-    icon: CheckCircle,
-    title: 'Transparencia total',
-    description:
-      'Precos claros desde o inicio. Sem surpresas, sem taxas escondidas. Voce sabe exatamente o que vai pagar.',
+    title: 'Tracking de Aderencia',
+    description: 'Lembretes de dosagem, confirmacao de uso e historico completo. Seu medico sabe se o tratamento esta funcionando.',
+    icon: '✅',
+  },
+  {
+    title: 'Produtos Nacionais + Importados',
+    description: 'Unica plataforma que oferece tanto produtos nacionais (RDC 327) quanto importados (RDC 660). Mais opcoes, melhores precos.',
+    icon: '🇧🇷',
+  },
+  {
+    title: 'Diario de Sintomas',
+    description: 'Registre diariamente como voce se sente. Algoritmos identificam padroes e ajudam o medico a ajustar o tratamento.',
+    icon: '📓',
+  },
+  {
+    title: 'Transparencia Total',
+    description: 'Precos claros desde o inicio. Sem surpresas, sem taxas escondidas. Voce sabe exatamente o que vai pagar antes de comecar.',
+    icon: '💎',
+  },
+]
+
+const TESTIMONIALS = [
+  {
+    name: 'Maria S.',
+    condition: 'Insonia',
+    text: 'Depois de 3 anos sem dormir direito, em 2 semanas com o tratamento guiado pela WiseDrops eu voltei a ter noites completas de sono.',
+    rating: 5,
+  },
+  {
+    name: 'Carlos R.',
+    condition: 'Dor Cronica',
+    text: 'O acompanhamento faz toda a diferenca. Meu medico ajustou a dosagem 3 vezes ate achar o ponto ideal. Na Blis ninguem fez follow-up comigo.',
+    rating: 5,
+  },
+  {
+    name: 'Ana L.',
+    condition: 'Ansiedade',
+    text: 'A consulta por video foi incrivel. O medico realmente me ouviu, pediu exames, e montou um plano de tratamento personalizado.',
+    rating: 5,
   },
 ]
 
@@ -74,7 +106,7 @@ const FAQ = [
   },
   {
     q: 'Qual a diferenca entre produtos nacionais e importados?',
-    a: 'Produtos nacionais (RDC 327) ja possuem registro ANVISA e sao vendidos em farmacias autorizadas — entrega mais rapida e geralmente mais acessiveis. Produtos importados (RDC 660) vem dos EUA e exigem autorizacao individual da ANVISA — mais variedade, prazo de ate 30 dias.',
+    a: 'Produtos nacionais (RDC 327) ja possuem registro ANVISA e sao vendidos em farmacias autorizadas — entrega mais rapida e geralmente mais acessiveis. Produtos importados (RDC 660) vem dos EUA e exigem autorizacao individual da ANVISA — mais variedade mas prazo de ate 30 dias.',
   },
   {
     q: 'Como funciona o acompanhamento do tratamento?',
@@ -86,318 +118,261 @@ const FAQ = [
   },
 ]
 
-const TESTIMONIALS = [
-  {
-    name: 'Maria S.',
-    condition: 'Insonia',
-    text: 'Depois de 3 anos sem dormir direito, em 2 semanas com o tratamento guiado pela WiseDrops eu voltei a ter noites completas de sono.',
-    rating: 5,
-  },
-  {
-    name: 'Carlos R.',
-    condition: 'Dor Cronica',
-    text: 'O acompanhamento faz toda a diferenca. Meu medico ajustou a dosagem 3 vezes ate achar o ponto ideal. Nunca tive esse nivel de cuidado antes.',
-    rating: 5,
-  },
-  {
-    name: 'Ana L.',
-    condition: 'Ansiedade',
-    text: 'A consulta por video foi incrivel. O medico realmente me ouviu, pediu exames e montou um plano de tratamento personalizado.',
-    rating: 5,
-  },
-]
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   return (
-    <div className="min-h-screen bg-surface-50">
-
-      {/* ------------------------------------------------------------------ */}
-      {/* Navigation                                                           */}
-      {/* ------------------------------------------------------------------ */}
-      <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-md border-b border-surface-200 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-lg border-b border-surface-200 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-
-            {/* Logo */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shadow-xs">
-                <span className="text-white font-heading font-bold text-sm leading-none">W</span>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center">
+                <span className="text-white font-bold text-sm">W</span>
               </div>
-              <span className="font-heading font-semibold text-lg text-surface-900 tracking-tight">
+              <span className="font-heading font-bold text-xl text-surface-900">
                 Wise<span className="text-brand-600">Drops</span>
               </span>
             </div>
-
-            {/* Nav links */}
             <div className="hidden md:flex items-center gap-8">
-              <a
-                href="#como-funciona"
-                className="text-sm text-surface-600 hover:text-surface-900 transition-colors duration-150"
-              >
-                Como funciona
+              <a href="#beneficios" className="text-sm text-surface-600 hover:text-brand-600 transition">
+                Beneficios
               </a>
-              <a
-                href="#medicos"
-                className="text-sm text-surface-600 hover:text-surface-900 transition-colors duration-150"
-              >
+              <a href="#como-funciona" className="text-sm text-surface-600 hover:text-brand-600 transition">
+                Como Funciona
+              </a>
+              <a href="#medicos" className="text-sm text-surface-600 hover:text-brand-600 transition">
                 Medicos
               </a>
-              <a
-                href="#faq"
-                className="text-sm text-surface-600 hover:text-surface-900 transition-colors duration-150"
-              >
+              <a href="#faq" className="text-sm text-surface-600 hover:text-brand-600 transition">
                 FAQ
               </a>
-              <Link
-                href="/blog"
-                className="text-sm text-surface-600 hover:text-surface-900 transition-colors duration-150"
-              >
+              <Link href="/blog" className="text-sm text-surface-600 hover:text-brand-600 transition">
                 Blog
               </Link>
             </div>
-
-            {/* Auth */}
             <div className="flex items-center gap-3">
               <Link
                 href="/login"
-                className="hidden sm:block text-sm font-medium text-surface-700 hover:text-brand-700 transition-colors duration-150"
+                className="text-sm font-medium text-surface-700 hover:text-brand-600 transition"
               >
                 Entrar
               </Link>
               <Link
-                href="/quiz"
-                className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 active:bg-brand-800 transition-colors duration-150 shadow-xs"
+                href="/register"
+                className="text-sm font-medium px-4 py-2 rounded-lg gradient-brand text-white hover:opacity-90 transition"
               >
-                Comecar agora
+                Comecar Agora
               </Link>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Hero                                                                 */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="pt-40 pb-32 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="max-w-4xl">
-
-            {/* Eyebrow */}
-            <p className="text-overline text-brand-700 uppercase tracking-widest font-semibold mb-8">
-              Cannabis medicinal
-            </p>
-
-            {/* Headline — recalibração premium: display-xl dominante, frase curta de impacto.
-                Apple Health/Function Health usam tipo ~80-120px no hero. */}
-            <h1 className="font-heading font-extrabold text-surface-900 text-balance text-5xl sm:text-6xl md:text-7xl xl:text-display-xl leading-[0.95] tracking-[-0.04em] mb-8">
-              O médico que <span className="text-brand-700">te ouve</span>.
+      {/* Hero */}
+      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sage-100 text-sage-700 text-sm font-medium mb-6">
+              <span className="w-2 h-2 rounded-full bg-sage-500 animate-pulse" />
+              Regulamentado pela ANVISA
+            </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-bold text-surface-900 leading-tight mb-6">
+              Tratamento com{' '}
+              <span className="text-brand-600">Cannabis Medicinal</span> Personalizado
             </h1>
-
-            {/* Subtitle */}
-            <p className="text-body-lg md:text-xl text-surface-600 max-w-xl mb-12 leading-relaxed">
-              Cannabis medicinal com médicos prescritores de verdade. Consulta por vídeo, receita digital e acompanhamento contínuo.
+            <p className="text-lg sm:text-xl text-surface-500 mb-8 max-w-2xl mx-auto">
+              Conectamos voce com medicos especializados para um tratamento seguro, legal e baseado em evidencias cientificas
             </p>
-
-            {/* CTAs */}
-            <div className="flex flex-col sm:flex-row items-start gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/quiz"
-                className="inline-flex items-center justify-center h-12 px-6 rounded-md bg-brand-600 text-white text-base font-medium hover:bg-brand-700 active:bg-brand-800 transition-colors duration-150 shadow-xs"
+                href="/register"
+                className="w-full sm:w-auto px-8 py-4 rounded-xl gradient-brand text-white font-semibold text-lg hover:opacity-90 transition shadow-lg shadow-brand-500/25"
               >
-                Fazer meu diagnostico
+                Cadastre-se Gratis
               </Link>
-              <Link
-                href="/medicos"
-                className="inline-flex items-center justify-center h-12 px-6 rounded-md border border-surface-300 bg-white text-surface-700 text-base font-medium hover:bg-surface-50 hover:border-surface-400 active:bg-surface-100 transition-colors duration-150"
+              <a
+                href="#como-funciona"
+                className="w-full sm:w-auto px-8 py-4 rounded-xl border-2 border-sage-300 text-sage-700 font-semibold text-lg hover:border-sage-500 hover:text-sage-800 hover:bg-sage-50 transition"
               >
-                Ver medicos
-              </Link>
+                Como Funciona
+              </a>
             </div>
-
-            {/* Social proof */}
-            <div className="mt-10 flex flex-wrap items-center gap-6 text-sm text-surface-500">
-              <div className="flex items-center gap-1.5">
-                <span className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={14} strokeWidth={0} className="fill-brand-500 text-brand-500" />
-                  ))}
-                </span>
-                <span>4.9 de satisfacao</span>
+            <div className="mt-8 flex items-center justify-center gap-6 text-sm text-surface-400">
+              <div className="flex items-center gap-1">
+                <span className="text-yellow-400">★★★★★</span>
+                <span>4.9/5</span>
               </div>
-              <div className="w-px h-4 bg-surface-300" aria-hidden="true" />
-              <span>500+ medicos certificados</span>
-              <div className="w-px h-4 bg-surface-300" aria-hidden="true" />
-              <span>25.000+ pacientes atendidos</span>
+              <div>500+ medicos certificados</div>
+              <div>25.000+ pacientes atendidos</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Como funciona                                                        */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="como-funciona" className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-6xl mx-auto">
-
-          {/* Section header */}
-          <div className="mb-16">
-            <p className="text-overline text-brand-700 mb-3">Como funciona</p>
-            <h2 className="font-heading font-semibold text-h1 text-surface-900 tracking-tight text-balance max-w-md">
-              Do primeiro contato ao tratamento em andamento.
-            </h2>
-          </div>
-
-          {/* Steps — recalibração premium: número de step como elemento decorativo dominante. */}
-          <div className="grid sm:grid-cols-3 gap-12 md:gap-8">
-            {HOW_IT_WORKS.map(({ step, title, description }) => (
-              <div key={step} className="relative pt-8">
-                <span
-                  aria-hidden
-                  className="absolute -top-2 left-0 font-heading font-extrabold text-[6rem] md:text-[8rem] leading-none tracking-[-0.06em] text-surface-100 select-none"
-                >
-                  {step}
-                </span>
-                <div className="relative pl-2">
-                  <h3 className="font-heading font-semibold text-h2 text-surface-900 mb-3 tracking-tight">
-                    {title}
-                  </h3>
-                  <p className="text-body text-surface-600 leading-relaxed max-w-xs">
-                    {description}
-                  </p>
-                </div>
+      {/* Conditions */}
+      <section className="py-16 bg-sage-50 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-2xl font-heading font-bold text-center text-surface-900 mb-2">
+            Tratamos diversas condicoes
+          </h2>
+          <p className="text-center text-surface-500 mb-10">
+            Cannabis medicinal pode ajudar com mais de 50 condicoes clinicas
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {CONDITIONS.map((c) => (
+              <div
+                key={c.label}
+                className="flex flex-col items-center p-4 rounded-xl bg-white border border-surface-200 hover:border-sage-400 hover:shadow-lg transition cursor-pointer"
+              >
+                <span className="text-3xl mb-2">{c.icon}</span>
+                <span className="font-semibold text-surface-900">{c.label}</span>
+                <span className="text-xs text-surface-400">{c.description}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Diferenciais                                                         */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="beneficios" className="py-24 px-4 sm:px-6 lg:px-8 bg-surface-50">
-        <div className="max-w-6xl mx-auto">
-
-          <div className="mb-16 max-w-xl">
-            <p className="text-overline text-brand-700 mb-3">Por que a WiseDrops</p>
-            <h2 className="font-heading font-semibold text-h1 text-surface-900 tracking-tight text-balance">
-              Nao somos mais um app de consulta.
-            </h2>
-          </div>
-
-          <div className="grid sm:grid-cols-3 gap-6">
-            {FEATURES.map(({ icon: Icon, title, description }) => (
-              <div
-                key={title}
-                className="bg-white border border-surface-200 rounded-xl shadow-xs p-6 transition-shadow duration-150 hover:shadow-md"
-              >
-                <div className="w-10 h-10 rounded-lg bg-sage-50 flex items-center justify-center mb-5">
-                  <Icon size={20} strokeWidth={1.5} className="text-sage-700" />
+      {/* How It Works */}
+      <section id="como-funciona" className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-heading font-bold text-center text-surface-900 mb-4">
+            Como Funciona
+          </h2>
+          <p className="text-center text-surface-500 mb-12 max-w-xl mx-auto">
+            4 passos simples para comecar seu tratamento com cannabis medicinal
+          </p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {STEPS.map((step) => (
+              <div key={step.number} className="relative">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-3xl">{step.icon}</span>
+                  <span className="text-4xl font-heading font-bold text-sage-300">
+                    {step.number}
+                  </span>
                 </div>
-                <h3 className="font-heading font-semibold text-h3 text-surface-900 mb-2 tracking-tight">
-                  {title}
+                <h3 className="text-lg font-heading font-semibold text-surface-900 mb-2">
+                  {step.title}
                 </h3>
-                <p className="text-sm text-surface-600 leading-relaxed">
-                  {description}
-                </p>
+                <p className="text-sm text-surface-500 leading-relaxed">{step.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Medicos                                                              */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="medicos" className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-
-            {/* Text */}
-            <div>
-              <p className="text-overline text-brand-700 mb-3">Nossa equipe medica</p>
-              <h2 className="font-heading font-semibold text-h1 text-surface-900 tracking-tight text-balance mb-6">
-                Medicos especializados em cannabis medicinal.
-              </h2>
-              <p className="text-body-lg text-surface-600 leading-relaxed mb-8">
-                Todos os medicos da plataforma sao certificados, com formacao especifica em cannabis medicinal e experiencia clinica comprovada. Nenhum atendimento automatizado. Voce fala com um medico de verdade.
-              </p>
-              <Link
-                href="/medicos"
-                className="inline-flex items-center justify-center h-10 px-5 rounded-md border border-surface-300 bg-white text-surface-700 text-sm font-medium hover:bg-surface-50 hover:border-surface-400 transition-colors duration-150"
+      {/* Differentials */}
+      <section id="diferenciais" className="py-20 bg-surface-900 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-heading font-bold text-center text-white mb-4">
+            Por que a WiseDrops e diferente
+          </h2>
+          <p className="text-center text-surface-400 mb-12 max-w-xl mx-auto">
+            Nao somos apenas mais um app de consulta. Somos a unica plataforma com acompanhamento medico real.
+          </p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {DIFFERENTIALS.map((d) => (
+              <div
+                key={d.title}
+                className="p-6 rounded-2xl bg-surface-800 border border-surface-700 hover:border-sage-500/50 transition"
               >
-                Conhecer os medicos
-              </Link>
-            </div>
-
-            {/* Stats — recalibração premium: fundo preto contrastante, números brancos grandes,
-                laranja só como acento. Para a seção sair do bg-white circundante. */}
-            <div className="grid grid-cols-2 gap-px bg-surface-900 rounded-2xl overflow-hidden">
-              {[
-                { value: '500+', label: 'Médicos certificados' },
-                { value: '25k+', label: 'Pacientes atendidos' },
-                { value: '4.9', label: 'Satisfação média' },
-                { value: '48h', label: 'Para primeira consulta' },
-              ].map(({ value, label }) => (
-                <div
-                  key={label}
-                  className="bg-surface-900 p-8"
-                >
-                  <p className="font-heading font-extrabold text-5xl xl:text-6xl text-white leading-none mb-3 tracking-[-0.04em]">
-                    {value}
-                  </p>
-                  <p className="text-caption uppercase tracking-widest font-semibold text-white/50 leading-snug">
-                    {label}
-                  </p>
-                </div>
-              ))}
-            </div>
+                <span className="text-3xl mb-4 block">{d.icon}</span>
+                <h3 className="text-lg font-heading font-semibold text-white mb-2">{d.title}</h3>
+                <p className="text-sm text-surface-400 leading-relaxed">{d.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Depoimentos                                                          */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-surface-50">
-        <div className="max-w-6xl mx-auto">
-
-          <div className="mb-16">
-            <p className="text-overline text-brand-700 mb-3">Depoimentos</p>
-            <h2 className="font-heading font-semibold text-h1 text-surface-900 tracking-tight text-balance max-w-md">
-              O que nossos pacientes dizem.
-            </h2>
+      {/* Comparison Table */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-heading font-bold text-center text-surface-900 mb-12">
+            WiseDrops vs Concorrentes
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b-2 border-surface-200">
+                  <th className="text-left py-4 px-4 font-heading font-semibold text-surface-900">
+                    Funcionalidade
+                  </th>
+                  <th className="text-center py-4 px-4 font-heading font-semibold text-brand-600">
+                    WiseDrops
+                  </th>
+                  <th className="text-center py-4 px-4 font-heading font-semibold text-surface-400">
+                    Blis
+                  </th>
+                  <th className="text-center py-4 px-4 font-heading font-semibold text-surface-400">
+                    Outros
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['Consulta por Video', true, false, false],
+                  ['Prontuario Eletronico', true, false, false],
+                  ['Tracking de Aderencia', true, false, false],
+                  ['Diario de Sintomas', true, false, false],
+                  ['Produtos Nacionais (RDC 327)', true, false, true],
+                  ['Produtos Importados (RDC 660)', true, true, true],
+                  ['Automacao ANVISA', true, true, false],
+                  ['Acompanhamento Longitudinal', true, false, false],
+                  ['CRM Medico', true, false, false],
+                ].map(([feature, wise, blis, others], i) => (
+                  <tr key={i} className="border-b border-surface-100">
+                    <td className="py-3 px-4 text-surface-700">{feature as string}</td>
+                    <td className="py-3 px-4 text-center">
+                      {wise ? (
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sage-100 text-sage-700">✓</span>
+                      ) : (
+                        <span className="text-surface-300">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      {blis ? (
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-surface-100 text-surface-500">✓</span>
+                      ) : (
+                        <span className="text-surface-300">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      {others ? (
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-surface-100 text-surface-500">✓</span>
+                      ) : (
+                        <span className="text-surface-300">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        </div>
+      </section>
 
-          <div className="grid sm:grid-cols-3 gap-6">
+      {/* Testimonials */}
+      <section id="depoimentos" className="py-20 bg-sage-50 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-heading font-bold text-center text-surface-900 mb-12">
+            O que nossos pacientes dizem
+          </h2>
+          <div className="grid md:grid-cols-3 gap-6">
             {TESTIMONIALS.map((t) => (
-              <div
-                key={t.name}
-                className="bg-white border border-surface-200 rounded-xl shadow-xs p-6"
-              >
-                {/* Stars */}
-                <div className="flex items-center gap-0.5 mb-4">
-                  {[...Array(t.rating)].map((_, i) => (
-                    <Star key={i} size={14} strokeWidth={0} className="fill-brand-500 text-brand-500" />
-                  ))}
+              <div key={t.name} className="p-6 rounded-2xl bg-white border border-surface-200 shadow-sm">
+                <div className="flex items-center gap-1 text-yellow-400 mb-4">
+                  {'★'.repeat(t.rating)}
                 </div>
-
-                <p className="text-surface-700 text-sm leading-relaxed mb-6">
-                  &ldquo;{t.text}&rdquo;
-                </p>
-
+                <p className="text-surface-600 mb-4 italic">&quot;{t.text}&quot;</p>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-sm text-surface-900">{t.name}</p>
-                    <p className="text-xs text-surface-500 mt-0.5">{t.condition}</p>
+                    <p className="font-semibold text-surface-900">{t.name}</p>
+                    <p className="text-xs text-surface-400">{t.condition}</p>
                   </div>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-sage-100 text-sage-700 text-xs font-medium">
-                    <CheckCircle size={10} strokeWidth={2} />
+                  <span className="text-xs px-2 py-1 rounded-full bg-sage-100 text-sage-700">
                     Verificado
                   </span>
                 </div>
@@ -407,39 +382,31 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* FAQ                                                                  */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="faq" className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
+      {/* FAQ */}
+      <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
-
-          <div className="mb-12">
-            <p className="text-overline text-brand-700 mb-3">FAQ</p>
-            <h2 className="font-heading font-semibold text-h1 text-surface-900 tracking-tight text-balance">
-              Perguntas frequentes.
-            </h2>
-          </div>
-
-          <div className="divide-y divide-surface-100">
-            {FAQ.map((item, i) => (
-              <div key={i}>
+          <h2 className="text-3xl font-heading font-bold text-center text-surface-900 mb-12">
+            Perguntas Frequentes
+          </h2>
+          <div className="space-y-3">
+            {FAQ.map((faq, i) => (
+              <div
+                key={i}
+                className="border border-surface-200 rounded-xl overflow-hidden"
+              >
                 <button
-                  type="button"
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between py-5 text-left gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
-                  aria-expanded={openFaq === i}
+                  className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-surface-50 transition"
                 >
-                  <span className="font-medium text-surface-900 text-sm">{item.q}</span>
-                  {openFaq === i ? (
-                    <ChevronUp size={16} strokeWidth={1.5} className="text-surface-400 shrink-0" />
-                  ) : (
-                    <ChevronDown size={16} strokeWidth={1.5} className="text-surface-400 shrink-0" />
-                  )}
+                  <span className="font-medium text-surface-900">{faq.q}</span>
+                  <span className="text-surface-400 text-xl ml-4">
+                    {openFaq === i ? '−' : '+'}
+                  </span>
                 </button>
                 {openFaq === i && (
-                  <p className="pb-5 text-sm text-surface-600 leading-relaxed animate-fade-in">
-                    {item.a}
-                  </p>
+                  <div className="px-6 pb-4 text-sm text-surface-500 leading-relaxed animate-fade-in">
+                    {faq.a}
+                  </div>
                 )}
               </div>
             ))}
@@ -447,99 +414,77 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* CTA final                                                            */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-surface-50">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-white border border-surface-200 rounded-2xl shadow-xs px-8 py-16 text-center max-w-2xl mx-auto">
-            <p className="text-overline text-brand-700 mb-4">Comece agora</p>
-            <h2 className="font-heading font-bold text-h1 text-surface-900 tracking-tight text-balance mb-4">
-              Seu tratamento comeca com uma pergunta.
+      {/* CTA */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="p-12 rounded-3xl bg-gradient-to-br from-sage-500 to-sage-700 text-white">
+            <h2 className="text-3xl font-heading font-bold mb-4">
+              Comece seu tratamento hoje
             </h2>
-            <p className="text-body-lg text-surface-600 max-w-lg mx-auto mb-8">
-              Faca o quiz gratuito e descubra qual medico e mais indicado para o seu caso. Em menos de 5 minutos.
+            <p className="text-lg text-white/80 mb-8 max-w-xl mx-auto">
+              Agende uma consulta por video com um medico certificado e descubra como cannabis medicinal pode transformar sua qualidade de vida.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                href="/quiz"
-                className="inline-flex items-center justify-center h-12 px-8 rounded-md bg-brand-600 text-white text-base font-medium hover:bg-brand-700 active:bg-brand-800 transition-colors duration-150 shadow-xs"
-              >
-                Fazer meu diagnostico
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center h-12 px-6 rounded-md border border-surface-300 bg-white text-surface-700 text-base font-medium hover:bg-surface-50 hover:border-surface-400 transition-colors duration-150"
-              >
-                Ja tenho conta
-              </Link>
-            </div>
+            <Link
+              href="/register"
+              className="inline-block px-8 py-4 rounded-xl bg-brand-600 text-white font-semibold text-lg hover:bg-brand-700 transition shadow-lg shadow-brand-900/20"
+            >
+              Cadastre-se Gratis
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Footer                                                               */}
-      {/* ------------------------------------------------------------------ */}
-      <footer className="bg-surface-900 px-4 sm:px-6 lg:px-8 pt-16 pb-10">
-        <div className="max-w-6xl mx-auto">
-
-          {/* Grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
-            {/* Brand */}
+      {/* Footer */}
+      <footer className="bg-surface-900 text-surface-400 py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div>
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-7 h-7 rounded-md bg-brand-600 flex items-center justify-center">
-                  <span className="text-white font-heading font-bold text-xs leading-none">W</span>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">W</span>
                 </div>
-                <span className="font-heading font-semibold text-base text-white">WiseDrops</span>
+                <span className="font-heading font-bold text-lg text-white">
+                  WiseDrops
+                </span>
               </div>
-              <p className="text-sm text-surface-500 leading-relaxed">
-                Plataforma completa de cannabis medicinal. Da consulta ao acompanhamento continuo.
+              <p className="text-sm leading-relaxed">
+                Plataforma completa de cannabis medicinal. Da consulta ao acompanhamento.
               </p>
             </div>
-
-            {/* Plataforma */}
             <div>
-              <p className="text-xs font-semibold text-surface-400 uppercase tracking-widest mb-4">Plataforma</p>
-              <div className="space-y-3">
-                <a href="#como-funciona" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">Como funciona</a>
-                <Link href="/medicos" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">Medicos</Link>
-                <Link href="/blog" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">Blog</Link>
-                <a href="#faq" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">FAQ</a>
+              <h4 className="font-heading font-semibold text-white mb-4">Plataforma</h4>
+              <div className="space-y-2 text-sm">
+                <a href="#como-funciona" className="block hover:text-white transition">Como Funciona</a>
+                <a href="#medicos" className="block hover:text-white transition">Para Medicos</a>
+                <Link href="/blog" className="block hover:text-white transition">Blog</Link>
+                <a href="#faq" className="block hover:text-white transition">FAQ</a>
               </div>
             </div>
-
-            {/* Suporte */}
             <div>
-              <p className="text-xs font-semibold text-surface-400 uppercase tracking-widest mb-4">Suporte</p>
-              <div className="space-y-3">
-                <a href="#" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">Central de ajuda</a>
-                <a href="#" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">Contato</a>
-                <a href="https://wa.me/5519929318700" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">WhatsApp</a>
+              <h4 className="font-heading font-semibold text-white mb-4">Suporte</h4>
+              <div className="space-y-2 text-sm">
+                <a href="#" className="block hover:text-white transition">Central de Ajuda</a>
+                <a href="#" className="block hover:text-white transition">Contato</a>
+                <a href="#" className="block hover:text-white transition">WhatsApp</a>
               </div>
             </div>
-
-            {/* Legal */}
             <div>
-              <p className="text-xs font-semibold text-surface-400 uppercase tracking-widest mb-4">Legal</p>
-              <div className="space-y-3">
-                <a href="#" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">Termos de uso</a>
-                <a href="#" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">Politica de privacidade</a>
-                <a href="#" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">LGPD</a>
-                <Link href="/seja-medico" className="block text-sm text-surface-500 hover:text-white transition-colors duration-150">Para medicos</Link>
+              <h4 className="font-heading font-semibold text-white mb-4">Legal</h4>
+              <div className="space-y-2 text-sm">
+                <a href="#" className="block hover:text-white transition">Termos de Uso</a>
+                <a href="#" className="block hover:text-white transition">Politica de Privacidade</a>
+                <a href="#" className="block hover:text-white transition">LGPD</a>
               </div>
             </div>
           </div>
-
-          {/* Bottom bar */}
-          <div className="border-t border-surface-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-surface-600">
-              &copy; 2024 WiseDrops. Todos os direitos reservados.
+          <div className="border-t border-surface-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs">
+              &copy; 2024 WiseDrops. Todos os direitos reservados
             </p>
-            <p className="text-xs text-surface-600">
-              Regulamentado pela ANVISA — RDC 327/2019 e RDC 660/2022
-            </p>
+            <div className="flex items-center gap-4 text-xs">
+              <a href="https://wa.me/5519929318700" className="hover:text-white transition">WhatsApp: +55 19 92931-8700</a>
+              <a href="https://instagram.com/wisedrops.br" className="hover:text-white transition">@wisedrops.br</a>
+            </div>
           </div>
         </div>
       </footer>
