@@ -13,6 +13,24 @@ export type TRPCContext = {
     role: UserRole
     email: string
   } | null
+  /**
+   * Multi-tenancy (PR 5):
+   * tenantId é injetado automaticamente pelo createTRPCContext a partir do
+   * User.tenantId na sessão. Hoje retorna sempre o tenant 'wisedrops' como
+   * fallback (stub single-tenant). Quando houver múltiplos tenants, substituir
+   * a lógica de resolução aqui — o contrato do ctx permanece o mesmo.
+   */
+  tenantId: string | null
+}
+
+// Cache in-process do ID do tenant default para evitar query a cada request
+let _defaultTenantId: string | null | undefined = undefined
+
+async function resolveDefaultTenantId(): Promise<string | null> {
+  if (_defaultTenantId !== undefined) return _defaultTenantId
+  const tenant = await db.tenant.findUnique({ where: { slug: 'wisedrops' }, select: { id: true } })
+  _defaultTenantId = tenant?.id ?? null
+  return _defaultTenantId
 }
 
 // Create context for each request — reads NextAuth session
@@ -29,9 +47,25 @@ export const createTRPCContext = async (_opts: {
       }
     : null
 
+  // Resolver tenantId: usa o do User na sessão quando disponível,
+  // caso contrário cai no tenant default 'wisedrops' (stub single-tenant).
+  // Futuro multi-tenant: ler do header X-Tenant-Slug ou subdomínio.
+  let tenantId: string | null = null
+  if (session?.userId) {
+    const userWithTenant = await db.user.findUnique({
+      where: { id: session.userId },
+      select: { tenantId: true },
+    })
+    tenantId = userWithTenant?.tenantId ?? null
+  }
+  if (!tenantId) {
+    tenantId = await resolveDefaultTenantId()
+  }
+
   return {
     db,
     session,
+    tenantId,
   }
 }
 

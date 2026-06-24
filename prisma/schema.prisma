@@ -16,6 +16,35 @@ datasource db {
 }
 
 // ============================================================
+// MULTI-TENANCY
+// ============================================================
+//
+// NOTA DE ARQUITETURA (PR 5 — multi-tenancy):
+//   Todo novo User, Doctor, Patient e Product DEVE ter tenantId atribuído.
+//   O tenant default de desenvolvimento é slug='wisedrops'.
+//   Em produção, o middleware tRPC injeta ctx.tenantId automaticamente.
+//   Campos tenantId são nullable para compatibilidade com dados existentes
+//   antes da migration — execute prisma/seed-tenant.ts para preencher.
+//
+model Tenant {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String   @unique
+  name      String
+  // { primaryColor, secondaryColor, logoUrl, displayName, domain }
+  brandJson Json?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users    User[]
+  doctors  Doctor[]
+  patients Patient[]
+  products Product[]
+
+  @@map("tenants")
+}
+
+// ============================================================
 // AUTH & USERS
 // ============================================================
 
@@ -44,9 +73,13 @@ model User {
   cpf           String        @unique
   phone         String
   avatarUrl     String?
+  // Multi-tenancy: nullable para compatibilidade com dados anteriores ao PR 5.
+  // Sempre setar ao criar User novo.
+  tenantId      String?       @db.Uuid
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
+  tenant        Tenant?       @relation(fields: [tenantId], references: [id])
   patient       Patient?
   doctor        Doctor?
   sessions      Session[]
@@ -55,6 +88,7 @@ model User {
 
   @@index([email])
   @@index([cpf])
+  @@index([tenantId])
   @@map("users")
 }
 
@@ -97,9 +131,13 @@ model Patient {
   primaryConditions   String[] // ICD-10 codes
   onboardingCompleted Boolean  @default(false)
   anvisaPatientId     String?
+  // Multi-tenancy: nullable para compatibilidade com dados anteriores ao PR 5.
+  // Sempre setar ao criar Patient novo.
+  tenantId            String?  @db.Uuid
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  tenant               Tenant?               @relation(fields: [tenantId], references: [id])
   user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   medicalRecords       MedicalRecord[]
   consultations        Consultation[]
@@ -112,6 +150,7 @@ model Patient {
   quizResponses        PatientQuiz[]
   documents            PatientDocument[]
 
+  @@index([tenantId])
   @@map("patients")
 }
 
@@ -186,9 +225,13 @@ model Doctor {
   averageRating         Float                    @default(0)
   totalConsultations    Int                      @default(0)
   isAcceptingPatients   Boolean                  @default(true)
+  // Multi-tenancy: nullable para compatibilidade com dados anteriores ao PR 5.
+  // Sempre setar ao criar Doctor novo.
+  tenantId              String?                  @db.Uuid
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
+  tenant                Tenant?                  @relation(fields: [tenantId], references: [id])
   user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   availability          DoctorAvailability[]
   consultations         Consultation[]
@@ -197,6 +240,7 @@ model Doctor {
   prescriptionTemplates PrescriptionTemplate[]
 
   @@unique([crm, crmState])
+  @@index([tenantId])
   @@map("doctors")
 }
 
@@ -554,14 +598,19 @@ model Product {
   isAvailable              Boolean         @default(true)
   stockQuantity            Int             @default(0)
   supplierId               String?         @db.Uuid
+  // Multi-tenancy: nullable para compatibilidade com dados anteriores ao PR 5.
+  // Sempre setar ao criar Product novo.
+  tenantId                 String?         @db.Uuid
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
 
+  tenant     Tenant?     @relation(fields: [tenantId], references: [id])
   supplier   Supplier?   @relation(fields: [supplierId], references: [id])
   orderItems OrderItem[]
 
   @@index([origin, category])
   @@index([isAvailable])
+  @@index([tenantId])
   @@map("products")
 }
 

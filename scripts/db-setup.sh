@@ -16,6 +16,9 @@ MIG_URL="$(node -e "let r=(process.env.DATABASE_URL||''); r=r.replace('-pooler',
 echo "[db-setup] sincronizando schema (aditivo/não-destrutivo)..."
 DATABASE_URL="$MIG_URL" npx prisma db push --skip-generate || echo "[db-setup] aviso: db push não aplicou (ok se o schema já existe)."
 
+echo "[db-setup] garantindo tenant default (multi-tenancy PR 5)..."
+DATABASE_URL="$MIG_URL" npx tsx prisma/seed-tenant.ts || echo "[db-setup] aviso: seed-tenant falhou."
+
 echo "[db-setup] garantindo o admin..."
 DATABASE_URL="$MIG_URL" npx tsx prisma/seed-admin.ts || echo "[db-setup] aviso: seed do admin falhou."
 
