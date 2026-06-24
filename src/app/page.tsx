@@ -136,15 +136,15 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="hidden md:flex items-center gap-8">
-              <a href="#beneficios" className="text-sm text-surface-600 hover:text-brand-600 transition">
+              <a href="#diferenciais" className="text-sm text-surface-600 hover:text-brand-600 transition">
                 Beneficios
               </a>
               <a href="#como-funciona" className="text-sm text-surface-600 hover:text-brand-600 transition">
                 Como Funciona
               </a>
-              <a href="#medicos" className="text-sm text-surface-600 hover:text-brand-600 transition">
+              <Link href="/medicos" className="text-sm text-surface-600 hover:text-brand-600 transition">
                 Medicos
-              </a>
+              </Link>
               <a href="#faq" className="text-sm text-surface-600 hover:text-brand-600 transition">
                 FAQ
               </a>
@@ -455,7 +455,7 @@ export default function LandingPage() {
               <h4 className="font-heading font-semibold text-white mb-4">Plataforma</h4>
               <div className="space-y-2 text-sm">
                 <a href="#como-funciona" className="block hover:text-white transition">Como Funciona</a>
-                <a href="#medicos" className="block hover:text-white transition">Para Medicos</a>
+                <Link href="/seja-medico" className="block hover:text-white transition">Para Medicos</Link>
                 <Link href="/blog" className="block hover:text-white transition">Blog</Link>
                 <a href="#faq" className="block hover:text-white transition">FAQ</a>
               </div>
@@ -463,17 +463,17 @@ export default function LandingPage() {
             <div>
               <h4 className="font-heading font-semibold text-white mb-4">Suporte</h4>
               <div className="space-y-2 text-sm">
-                <a href="#" className="block hover:text-white transition">Central de Ajuda</a>
-                <a href="#" className="block hover:text-white transition">Contato</a>
-                <a href="#" className="block hover:text-white transition">WhatsApp</a>
+                <a href="https://wa.me/5519929318700" target="_blank" rel="noopener noreferrer" className="block hover:text-white transition">Central de Ajuda</a>
+                <a href="mailto:contato@wisedrops.com.br" className="block hover:text-white transition">Contato</a>
+                <a href="https://wa.me/5519929318700" target="_blank" rel="noopener noreferrer" className="block hover:text-white transition">WhatsApp</a>
               </div>
             </div>
             <div>
               <h4 className="font-heading font-semibold text-white mb-4">Legal</h4>
               <div className="space-y-2 text-sm">
-                <a href="#" className="block hover:text-white transition">Termos de Uso</a>
-                <a href="#" className="block hover:text-white transition">Politica de Privacidade</a>
-                <a href="#" className="block hover:text-white transition">LGPD</a>
+                <Link href="/termos" className="block hover:text-white transition">Termos de Uso</Link>
+                <Link href="/privacidade" className="block hover:text-white transition">Politica de Privacidade</Link>
+                <Link href="/lgpd" className="block hover:text-white transition">LGPD</Link>
               </div>
             </div>
           </div>
