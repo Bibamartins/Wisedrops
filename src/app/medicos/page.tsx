@@ -81,9 +81,9 @@ export default function MarketplacePage() {
         <div aria-hidden className="absolute -bottom-32 left-1/3 w-96 h-96 rounded-full bg-brand-50 blur-3xl opacity-50 pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-6 py-16 md:py-20 relative">
-          <div className="grid lg:grid-cols-[1.3fr_1fr] gap-12 items-center">
+          <div className="grid lg:grid-cols-[1.2fr_0.9fr] gap-10 items-stretch">
             {/* Coluna texto */}
-            <div>
+            <div className="flex flex-col justify-center">
               <p className="text-overline text-brand-700 mb-4 uppercase tracking-widest font-semibold">
                 Encontre seu médico
               </p>
@@ -116,23 +116,23 @@ export default function MarketplacePage() {
             </div>
 
             {/* Coluna banner editorial */}
-            <div className="relative hidden lg:block">
-              <div className="relative p-8 rounded-3xl bg-gradient-to-br from-sage-700 to-sage-800 text-white shadow-xl">
+            <div className="relative hidden lg:flex">
+              <div className="relative w-full p-8 rounded-3xl bg-gradient-to-br from-sage-700 to-sage-800 text-white shadow-xl flex flex-col justify-between">
                 {/* Pattern decorativo */}
                 <div aria-hidden className="absolute inset-0 rounded-3xl opacity-10" style={{
                   backgroundImage: 'radial-gradient(circle at 20% 20%, white 1px, transparent 1px), radial-gradient(circle at 80% 60%, white 1px, transparent 1px)',
                   backgroundSize: '32px 32px, 48px 48px',
                 }} />
 
-                <div className="relative space-y-6">
+                <div className="relative flex flex-col h-full justify-between gap-6">
                   {/* Selo regulatório */}
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium backdrop-blur-sm">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium backdrop-blur-sm self-start">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     Regulamentado ANVISA
                   </div>
 
                   {/* Como funciona — 3 passos */}
-                  <div className="space-y-4 pt-2">
+                  <div className="space-y-5 flex-1">
                     <div className="flex items-start gap-4">
                       <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 backdrop-blur-sm">
                         <Stethoscope className="h-5 w-5" />
