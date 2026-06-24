@@ -1,18 +1,19 @@
 /**
- * HubSpot Service — CRM sync (LGPD-aware)
+ * HubSpot Service — CRM sync (LGPD-aware, pipeline único)
  *
- * Todo dado que sai daqui é deliberadamente generalizado:
- * - Categoria de foco do quiz (sono | dor | ansiedade | bem_estar | outros)
- *   NUNCA o nome técnico da condição (insônia crônica, fibromialgia, etc).
- * - Nível de prioridade (alta | média | baixa), NUNCA severidade detalhada.
- * - SEM CPF, SEM respostas brutas do quiz, SEM prontuário, SEM prescrição.
+ * Estratégia: HubSpot Free permite só 1 pipeline de Deal — usamos o
+ * pipeline `default` da conta, com estágios do WiseDrops adicionados
+ * via `scripts/hubspot-setup.ts`. Cada Deal carrega `wd_deal_type` =
+ * CONSULTATION | ORDER, então no kanban dá pra filtrar por tipo.
  *
- * Tudo é fire-and-forget: falha do HubSpot nunca bloqueia o app.
- * Se HUBSPOT_PRIVATE_APP_TOKEN não estiver setado, todas as funções
- * fazem no-op e retornam null/false.
+ * LGPD: tudo que sai daqui é deliberadamente generalizado.
+ *  - Categoria de foco do quiz (sono | dor | ansiedade | bem_estar | outros)
+ *    NUNCA o nome técnico da condição (insônia crônica, fibromialgia, etc).
+ *  - Nível de prioridade (alta | média | baixa), NUNCA severidade detalhada.
+ *  - SEM CPF, SEM respostas brutas do quiz, SEM prontuário, SEM prescrição.
  *
- * Custom properties + pipelines precisam ser criadas uma vez via
- * `scripts/hubspot-setup.ts` (que vai junto desta entrega).
+ * Fire-and-forget: falha do HubSpot nunca bloqueia o app. Sem token,
+ * todas as funções fazem no-op e retornam null/false.
  */
 
 import { Client } from '@hubspot/api-client'
@@ -51,9 +52,7 @@ export function mapToFocusCategory(condition: string | null | undefined): string
 }
 
 const RISK_TO_PRIORITY: Record<string, string> = {
-  high: 'alta',
-  medium: 'media',
-  low: 'baixa',
+  high: 'alta', medium: 'media', low: 'baixa',
 }
 
 export function mapRiskToPriority(risk: string | null | undefined): string {
@@ -62,55 +61,60 @@ export function mapRiskToPriority(risk: string | null | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
-// Pipelines + stages (definidos no scripts/hubspot-setup.ts)
+// Pipeline único + estágios
 // ---------------------------------------------------------------------------
 
-const CONSULT_PIPELINE_LABEL = 'WiseDrops · Consulta'
-const ORDER_PIPELINE_LABEL   = 'WiseDrops · Pedido'
+const PIPELINE_ID = 'default' // único pipeline disponível no Free
 
-const CONSULT_STAGES = {
-  QUIZ_COMPLETED: 'Quiz Completado',
-  SCHEDULED:      'Agendada',
-  PAID:           'Paga',
-  COMPLETED:      'Realizada',
-  CANCELLED:      'Cancelada',
+// Estágios WiseDrops (criados em scripts/hubspot-setup.ts). Servem
+// AMBOS Consulta e Pedido — `wd_deal_type` separa visualmente.
+const STAGE_LABELS = {
+  QUIZ_COMPLETED:       'Quiz Completado',
+  CONSULT_SCHEDULED:    'Consulta Agendada',
+  CONSULT_PAID:         'Consulta Paga',
+  CONSULT_COMPLETED:    'Consulta Realizada',
+  ORDER_CREATED:        'Pedido Criado',
+  ORDER_PAID:           'Pedido Pago',
+  ORDER_SHIPPED:        'Pedido Enviado',
+  ORDER_DELIVERED:      'Pedido Entregue',
+  CANCELLED:            'Cancelado',
 } as const
 
-const ORDER_STAGES = {
-  CREATED:    'Pedido Criado',
-  PAID:       'Pago',
-  PROCESSING: 'Processando',
-  SHIPPED:    'Enviado',
-  DELIVERED:  'Entregue',
-  CANCELLED:  'Cancelado',
-} as const
+type StageKey = keyof typeof STAGE_LABELS
 
-type ConsultStage = keyof typeof CONSULT_STAGES
-type OrderStage   = keyof typeof ORDER_STAGES
+// Cache em memória de stage label → stage ID (resetado a cada cold start)
+let stageIdCache: Record<string, string> | null = null
 
-// Cache em memória de pipeline + stage IDs (resetado a cada cold start)
-type PipelineInfo = { id: string; stages: Record<string, string> }
-const pipelineCache: Record<string, PipelineInfo> = {}
-
-async function getPipelineByLabel(c: Client, label: string): Promise<PipelineInfo | null> {
-  if (pipelineCache[label]) return pipelineCache[label]
+async function getStageIds(c: Client): Promise<Record<string, string>> {
+  if (stageIdCache) return stageIdCache
   try {
     const list = await c.crm.pipelines.pipelinesApi.getAll('deals')
-    const found = list.results.find((p: { label: string }) => p.label === label)
-    if (!found) {
-      console.warn(`[hubspot] pipeline "${label}" não encontrado — rode scripts/hubspot-setup.ts`)
-      return null
+    const def = list.results.find((p: any) => p.id === PIPELINE_ID)
+    if (!def) {
+      console.warn('[hubspot] pipeline default não encontrado')
+      return {}
     }
-    const stages: Record<string, string> = {}
-    for (const s of (found.stages ?? []) as Array<{ label: string; id: string }>) {
-      stages[s.label] = s.id
+    const ids: Record<string, string> = {}
+    for (const s of (def.stages ?? []) as Array<{ label: string; id: string }>) {
+      ids[s.label] = s.id
     }
-    pipelineCache[label] = { id: found.id, stages }
-    return pipelineCache[label]
+    stageIdCache = ids
+    return ids
   } catch (e) {
-    console.error('[hubspot] getPipelineByLabel failed:', (e as Error).message)
+    console.error('[hubspot] getStageIds failed:', (e as Error).message)
+    return {}
+  }
+}
+
+async function resolveStageId(c: Client, key: StageKey): Promise<string | null> {
+  const ids = await getStageIds(c)
+  const label = STAGE_LABELS[key]
+  const id = ids[label]
+  if (!id) {
+    console.warn(`[hubspot] estágio "${label}" não encontrado — rode 'npm run hubspot:setup'`)
     return null
   }
+  return id
 }
 
 // ---------------------------------------------------------------------------
@@ -154,7 +158,6 @@ export async function upsertContact(input: UpsertContactInput): Promise<{ id: st
   if (input.utmMedium) props.hs_analytics_source_data_1 = input.utmMedium
 
   try {
-    // Tenta atualizar usando email como id (idProperty = 'email')
     const res = await c.crm.contacts.basicApi.update(input.email, { properties: props } as any, 'email' as any)
     return { id: res.id }
   } catch (e: any) {
@@ -164,7 +167,6 @@ export async function upsertContact(input: UpsertContactInput): Promise<{ id: st
         const created = await c.crm.contacts.basicApi.create({ properties: props } as any)
         return { id: created.id }
       } catch (createErr: any) {
-        // Pode dar 409 (já existe race condition) — tenta atualizar de novo
         const cstatus = createErr?.code ?? createErr?.statusCode
         if (cstatus === 409) {
           try {
@@ -217,7 +219,7 @@ export async function trackQuizCompleted(input: {
 }
 
 // ---------------------------------------------------------------------------
-// Consultation deal
+// Deals — Consulta + Pedido no MESMO pipeline
 // ---------------------------------------------------------------------------
 
 async function findDealByCustomId(c: Client, propertyName: string, value: string) {
@@ -234,39 +236,44 @@ async function findDealByCustomId(c: Client, propertyName: string, value: string
   }
 }
 
+// ----- Consulta -----
+
+type ConsultStageKey = 'SCHEDULED' | 'PAID' | 'COMPLETED' | 'CANCELLED'
+
+const CONSULT_STAGE_MAP: Record<ConsultStageKey, StageKey> = {
+  SCHEDULED:  'CONSULT_SCHEDULED',
+  PAID:       'CONSULT_PAID',
+  COMPLETED:  'CONSULT_COMPLETED',
+  CANCELLED:  'CANCELLED',
+}
+
 export async function createConsultationDeal(input: {
   patientEmail: string
   patientName?: string
   consultationId: string
   priceCents: number
-  stage?: ConsultStage
+  stage?: ConsultStageKey
 }): Promise<{ id: string } | null> {
   const c = client()
   if (!c) return null
   try {
-    const pipeline = await getPipelineByLabel(c, CONSULT_PIPELINE_LABEL)
-    if (!pipeline) return null
-    const stageLabel = CONSULT_STAGES[input.stage ?? 'SCHEDULED']
-    const stageId = pipeline.stages[stageLabel]
-    if (!stageId) {
-      console.warn(`[hubspot] stage "${stageLabel}" não encontrado no pipeline Consulta`)
-      return null
-    }
+    const stageId = await resolveStageId(c, CONSULT_STAGE_MAP[input.stage ?? 'SCHEDULED'])
+    if (!stageId) return null
 
     const contact = await upsertContact({ email: input.patientEmail, role: 'PATIENT' })
     if (!contact) return null
 
-    // Já existe deal pra essa consulta? evita duplicar.
     const existing = await findDealByCustomId(c, 'wd_consultation_id', input.consultationId)
     if (existing) return { id: existing.id }
 
     const deal = await c.crm.deals.basicApi.create({
       properties: {
-        dealname: `Consulta — ${input.patientName ?? input.patientEmail}`,
-        dealstage: stageId,
-        pipeline: pipeline.id,
-        amount: String((input.priceCents / 100).toFixed(2)),
+        dealname:    `Consulta — ${input.patientName ?? input.patientEmail}`,
+        dealstage:   stageId,
+        pipeline:    PIPELINE_ID,
+        amount:      String((input.priceCents / 100).toFixed(2)),
         wd_consultation_id: input.consultationId,
+        wd_deal_type: 'CONSULTATION',
       },
       associations: [{
         to: { id: contact.id },
@@ -283,19 +290,16 @@ export async function createConsultationDeal(input: {
 export async function moveConsultationDealStage(input: {
   patientEmail: string
   consultationId: string
-  stage: ConsultStage
+  stage: ConsultStageKey
 }): Promise<boolean> {
   const c = client()
   if (!c) return false
   try {
-    const pipeline = await getPipelineByLabel(c, CONSULT_PIPELINE_LABEL)
-    if (!pipeline) return false
-    const stageId = pipeline.stages[CONSULT_STAGES[input.stage]]
+    const stageId = await resolveStageId(c, CONSULT_STAGE_MAP[input.stage])
     if (!stageId) return false
 
     const existing = await findDealByCustomId(c, 'wd_consultation_id', input.consultationId)
     if (!existing) {
-      // Não tem deal ainda — não cria do nada aqui; deve ter sido criado em consultation.book
       console.warn(`[hubspot] deal não encontrado pra consultation ${input.consultationId}`)
       return false
     }
@@ -310,24 +314,30 @@ export async function moveConsultationDealStage(input: {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Order deal
-// ---------------------------------------------------------------------------
+// ----- Pedido -----
+
+type OrderStageKey = 'CREATED' | 'PAID' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+
+const ORDER_STAGE_MAP: Record<OrderStageKey, StageKey> = {
+  CREATED:     'ORDER_CREATED',
+  PAID:        'ORDER_PAID',
+  PROCESSING:  'ORDER_PAID', // sem estágio dedicado — fica em "Pago" até enviar
+  SHIPPED:     'ORDER_SHIPPED',
+  DELIVERED:   'ORDER_DELIVERED',
+  CANCELLED:   'CANCELLED',
+}
 
 export async function createOrderDeal(input: {
   patientEmail: string
   patientName?: string
   orderId: string
   totalCents: number
-  stage?: OrderStage
+  stage?: OrderStageKey
 }): Promise<{ id: string } | null> {
   const c = client()
   if (!c) return null
   try {
-    const pipeline = await getPipelineByLabel(c, ORDER_PIPELINE_LABEL)
-    if (!pipeline) return null
-    const stageLabel = ORDER_STAGES[input.stage ?? 'CREATED']
-    const stageId = pipeline.stages[stageLabel]
+    const stageId = await resolveStageId(c, ORDER_STAGE_MAP[input.stage ?? 'CREATED'])
     if (!stageId) return null
 
     const contact = await upsertContact({ email: input.patientEmail, role: 'PATIENT' })
@@ -338,11 +348,12 @@ export async function createOrderDeal(input: {
 
     const deal = await c.crm.deals.basicApi.create({
       properties: {
-        dealname: `Pedido — ${input.patientName ?? input.patientEmail}`,
-        dealstage: stageId,
-        pipeline: pipeline.id,
-        amount: String((input.totalCents / 100).toFixed(2)),
+        dealname:    `Pedido — ${input.patientName ?? input.patientEmail}`,
+        dealstage:   stageId,
+        pipeline:    PIPELINE_ID,
+        amount:      String((input.totalCents / 100).toFixed(2)),
         wd_order_id: input.orderId,
+        wd_deal_type: 'ORDER',
       },
       associations: [{
         to: { id: contact.id },
@@ -359,14 +370,12 @@ export async function createOrderDeal(input: {
 export async function moveOrderDealStage(input: {
   patientEmail: string
   orderId: string
-  stage: OrderStage
+  stage: OrderStageKey
 }): Promise<boolean> {
   const c = client()
   if (!c) return false
   try {
-    const pipeline = await getPipelineByLabel(c, ORDER_PIPELINE_LABEL)
-    if (!pipeline) return false
-    const stageId = pipeline.stages[ORDER_STAGES[input.stage]]
+    const stageId = await resolveStageId(c, ORDER_STAGE_MAP[input.stage])
     if (!stageId) return false
 
     const existing = await findDealByCustomId(c, 'wd_order_id', input.orderId)
@@ -385,10 +394,8 @@ export async function moveOrderDealStage(input: {
   }
 }
 
-// Exporta constantes pra script de setup poder reutilizar nomes
+// Exporta constantes pra script de setup poder reutilizar
 export const HUBSPOT_LABELS = {
-  CONSULT_PIPELINE_LABEL,
-  ORDER_PIPELINE_LABEL,
-  CONSULT_STAGES,
-  ORDER_STAGES,
+  PIPELINE_ID,
+  STAGE_LABELS,
 } as const
