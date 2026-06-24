@@ -540,6 +540,122 @@ export const orderRouter = createTRPCRouter({
 
       return { success: true }
     }),
+
+  /**
+   * Reorder 1-clique (PR 10). Cria um novo pedido baseado num pedido
+   * anterior do paciente — mesmos items, mesma prescription (se ainda
+   * válida), mesmo endereço de entrega.
+   *
+   * Útil pra paciente em tratamento longitudinal que apenas quer
+   * "mais do mesmo". Retorna o orderId da nova ordem em PENDING_PAYMENT.
+   */
+  reorder: patientProcedure
+    .input(z.object({ sourceOrderId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const patient = await ctx.db.patient.findUnique({
+        where: { userId: ctx.session.userId },
+        select: { id: true },
+      })
+      if (!patient) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Perfil de paciente não encontrado.' })
+      }
+
+      const source = await ctx.db.order.findUnique({
+        where: { id: input.sourceOrderId },
+        include: {
+          items: true,
+          prescription: true,
+        },
+      })
+      if (!source) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Pedido original não encontrado.' })
+      }
+      if (source.patientId !== patient.id) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Este pedido não pertence a você.' })
+      }
+
+      // Receita ainda válida?
+      const rxValid = source.prescription.validUntil > new Date()
+      if (!rxValid) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'A receita deste pedido está vencida. Agende um retorno com seu médico.',
+        })
+      }
+
+      // Valida produtos ainda disponíveis e tem estoque
+      const productIds = source.items.map((i) => i.productId)
+      const products = await ctx.db.product.findMany({
+        where: { id: { in: productIds }, isAvailable: true },
+      })
+      if (products.length !== productIds.length) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Um ou mais produtos do pedido original não estão disponíveis.',
+        })
+      }
+      const productMap = new Map(products.map((p) => [p.id, p]))
+      for (const item of source.items) {
+        const product = productMap.get(item.productId)!
+        if (product.stockQuantity < item.quantity) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Estoque insuficiente para "${product.name}".`,
+          })
+        }
+      }
+
+      // Recalcula com preço atual (não duplica o histórico)
+      const orderItems = source.items.map((item) => {
+        const product = productMap.get(item.productId)!
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPriceCents: product.priceCents,
+          totalCents: product.priceCents * item.quantity,
+        }
+      })
+      const subtotalCents = orderItems.reduce((s, i) => s + i.totalCents, 0)
+      const shippingCents = source.shippingCents
+      const totalCents = subtotalCents + shippingCents
+
+      const newOrder = await ctx.db.$transaction(async (tx) => {
+        const created = await tx.order.create({
+          data: {
+            patientId: patient.id,
+            prescriptionId: source.prescriptionId,
+            status: OrderStatus.PENDING_PAYMENT,
+            subtotalCents,
+            shippingCents,
+            discountCents: 0,
+            totalCents,
+            shippingAddress: source.shippingAddress as object,
+            notes: source.notes ? `Reabastecimento de #${source.id.slice(0, 8)}` : undefined,
+            items: { create: orderItems },
+          },
+        })
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: created.id,
+            status: OrderStatus.PENDING_PAYMENT,
+            note: `Reabastecimento 1-clique do pedido #${source.id.slice(0, 8)}.`,
+          },
+        })
+        return created
+      })
+
+      await ctx.db.auditLog.create({
+        data: {
+          userId: ctx.session.userId,
+          action: 'order.reorder',
+          entityType: 'order',
+          entityId: newOrder.id,
+          metadata: { sourceOrderId: source.id, totalCents },
+        },
+      })
+
+      return { orderId: newOrder.id, totalCents }
+    }),
 })
 
 // ---------------------------------------------------------------------------

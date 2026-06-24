@@ -2,10 +2,12 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { trpc } from '@/lib/trpc'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { mapOrderStatus } from '@/lib/status-registry'
+import { Button } from '@/components/ui/button'
+import { RotateCw } from 'lucide-react'
 
 function formatBRL(cents: number) {
   return `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`
@@ -21,6 +23,26 @@ export default function PatientOrdersPage() {
   const paymentStatus = searchParams.get('payment')
   const query = trpc.order.listForPatient.useQuery({ page: 1, limit: 50 })
   const orders = useMemo(() => query.data?.orders ?? [], [query.data])
+  const [reorderingId, setReorderingId] = useState<string | null>(null)
+  const [reorderError, setReorderError] = useState<string | null>(null)
+  const utils = trpc.useUtils()
+  const reorderMutation = trpc.order.reorder.useMutation()
+  const checkoutMutation = trpc.payment.createOrderPaypalCheckout.useMutation()
+
+  async function handleReorder(sourceOrderId: string) {
+    setReorderError(null)
+    setReorderingId(sourceOrderId)
+    try {
+      const { orderId } = await reorderMutation.mutateAsync({ sourceOrderId })
+      const checkout = await checkoutMutation.mutateAsync({ orderId })
+      window.location.href = checkout.approveUrl
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao reabastecer.'
+      setReorderError(msg)
+      setReorderingId(null)
+      await utils.order.listForPatient.invalidate()
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -157,9 +179,34 @@ export default function PatientOrdersPage() {
                     />
                   </div>
                 )}
+
+                {/* CTA contextual: pedido entregue — reabastecer 1-clique */}
+                {o.status === 'DELIVERED' && (
+                  <div className="mt-3 pt-3 border-t border-surface-100 flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-xs text-surface-500">
+                      Acabou? Reabasteça com os mesmos produtos em um clique.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={reorderingId === o.id}
+                      disabled={reorderingId !== null && reorderingId !== o.id}
+                      onClick={() => handleReorder(o.id)}
+                    >
+                      <RotateCw className="h-4 w-4" />
+                      Reabastecer
+                    </Button>
+                  </div>
+                )}
               </div>
             )
           })}
+        </div>
+      )}
+
+      {reorderError && (
+        <div className="p-3 rounded-xl bg-error-50 border border-error-100 text-sm text-error-700">
+          {reorderError}
         </div>
       )}
     </div>
