@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 import {
-  LayoutDashboard,
+  Inbox,
   ShoppingBag,
   Package,
-  ShieldCheck,
   DollarSign,
-  Stethoscope,
+  UsersRound,
 } from 'lucide-react'
 import { useAuth } from '@/lib/use-auth'
 import { Navbar } from '@/components/shared/navbar'
@@ -18,18 +17,15 @@ import { Sidebar, type SidebarItem } from '@/components/shared/sidebar'
 // -----------------------------------------------------------------------
 
 const ADMIN_NAV: SidebarItem[] = [
-  { href: '/admin-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin-orders', label: 'Pedidos', icon: ShoppingBag },
-  { href: '/admin-products', label: 'Produtos', icon: Package },
-  { href: '/anvisa', label: 'ANVISA', icon: ShieldCheck, badge: 12 },
-  { href: '/admin-finances', label: 'Financeiro', icon: DollarSign },
-  { href: '/doctors', label: 'Medicos', icon: Stethoscope, badge: 3 },
+  { href: '/operacional', label: 'Operacional', icon: Inbox, badge: 15 },
+  { href: '/pedidos-admin', label: 'Pedidos', icon: ShoppingBag },
+  { href: '/catalogo', label: 'Catalogo', icon: Package },
+  { href: '/financeiro-admin', label: 'Financeiro', icon: DollarSign },
+  { href: '/pessoas', label: 'Pessoas', icon: UsersRound, badge: 3 },
 ]
 
 const ADMIN_SECTIONS = [
-  { title: 'Principal', items: ADMIN_NAV.slice(0, 1) },
-  { title: 'Gestao', items: ADMIN_NAV.slice(1, 5) },
-  { title: 'Sistema', items: ADMIN_NAV.slice(5) },
+  { title: '', items: ADMIN_NAV },
 ]
 
 // -----------------------------------------------------------------------
@@ -69,7 +65,7 @@ export default function AdminLayout({
         onLogout={logout}
         onMenuToggle={() => setMenuOpen((v) => !v)}
         menuOpen={menuOpen}
-        logoHref="/admin-dashboard"
+        logoHref="/operacional"
       />
 
       <Sidebar

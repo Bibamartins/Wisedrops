@@ -4,14 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
-  Calendar,
-  ClipboardList,
-  FileText,
-  FolderOpen,
-  Pill,
-  Package,
-  ShoppingBag,
   HeartPulse,
+  ShoppingBag,
   User,
 } from 'lucide-react'
 import { useAuth } from '@/lib/use-auth'
@@ -23,23 +17,14 @@ import { Sidebar, type SidebarItem } from '@/components/shared/sidebar'
 // -----------------------------------------------------------------------
 
 const PATIENT_NAV: SidebarItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/quiz', label: 'Avaliacao', icon: ClipboardList },
-  { href: '/consultations', label: 'Consultas', icon: Calendar },
-  { href: '/prescriptions', label: 'Receitas', icon: FileText },
-  { href: '/documents', label: 'Documentos', icon: FolderOpen },
-  { href: '/treatment', label: 'Tratamento', icon: Pill },
-  { href: '/products', label: 'Produtos', icon: Package },
-  { href: '/orders', label: 'Pedidos', icon: ShoppingBag },
-  { href: '/medical-records', label: 'Prontuario', icon: HeartPulse },
-  { href: '/profile', label: 'Perfil', icon: User },
+  { href: '/home', label: 'Home', icon: LayoutDashboard },
+  { href: '/tratamento', label: 'Tratamento', icon: HeartPulse },
+  { href: '/comprar', label: 'Comprar', icon: ShoppingBag },
+  { href: '/perfil', label: 'Perfil', icon: User },
 ]
 
 const PATIENT_SECTIONS = [
-  { title: 'Principal', items: PATIENT_NAV.slice(0, 1) },
-  { title: 'Saude', items: PATIENT_NAV.slice(1, 5) },
-  { title: 'Produtos', items: PATIENT_NAV.slice(5, 8) },
-  { title: 'Conta', items: PATIENT_NAV.slice(8) },
+  { title: '', items: PATIENT_NAV },
 ]
 
 // -----------------------------------------------------------------------
@@ -100,7 +85,7 @@ export default function PatientLayout({
         onLogout={logout}
         onMenuToggle={() => setMenuOpen((v) => !v)}
         menuOpen={menuOpen}
-        logoHref="/dashboard"
+        logoHref="/home"
       />
 
       <Sidebar

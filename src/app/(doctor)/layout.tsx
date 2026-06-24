@@ -4,10 +4,7 @@ import { useState } from 'react'
 import {
   LayoutDashboard,
   Users,
-  Calendar,
-  FileText,
   CalendarClock,
-  Package,
   DollarSign,
 } from 'lucide-react'
 import { useAuth } from '@/lib/use-auth'
@@ -19,19 +16,14 @@ import { Sidebar, type SidebarItem } from '@/components/shared/sidebar'
 // -----------------------------------------------------------------------
 
 const DOCTOR_NAV: SidebarItem[] = [
-  { href: '/doctor-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/patients', label: 'Pacientes', icon: Users },
-  { href: '/doctor-consultations', label: 'Consultas', icon: Calendar },
-  { href: '/prescriptions/new', label: 'Nova Receita', icon: FileText },
-  { href: '/schedule', label: 'Agenda', icon: CalendarClock },
-  { href: '/doctor-products', label: 'Produtos', icon: Package },
-  { href: '/doctor-finances', label: 'Financeiro', icon: DollarSign },
+  { href: '/hoje', label: 'Hoje', icon: LayoutDashboard },
+  { href: '/pacientes', label: 'Pacientes', icon: Users },
+  { href: '/agenda', label: 'Agenda', icon: CalendarClock },
+  { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
 ]
 
 const DOCTOR_SECTIONS = [
-  { title: 'Principal', items: DOCTOR_NAV.slice(0, 1) },
-  { title: 'Clinica', items: DOCTOR_NAV.slice(1, 5) },
-  { title: 'Gestao', items: DOCTOR_NAV.slice(5) },
+  { title: '', items: DOCTOR_NAV },
 ]
 
 // -----------------------------------------------------------------------
@@ -64,7 +56,7 @@ export default function DoctorLayout({
         onLogout={logout}
         onMenuToggle={() => setMenuOpen((v) => !v)}
         menuOpen={menuOpen}
-        logoHref="/doctor-dashboard"
+        logoHref="/hoje"
       />
 
       <Sidebar
