@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Search, Stethoscope, Star, Calendar, Clock } from 'lucide-react'
+import { Search, Stethoscope, Star, Calendar, Clock, ShieldCheck, Award, HeartPulse } from 'lucide-react'
 
 type SortKey = 'rating' | 'price-low' | 'price-high' | 'experience'
 
@@ -74,24 +74,105 @@ export default function MarketplacePage() {
 
   return (
     <div className="min-h-screen bg-surface-50">
-      {/* Hero */}
-      <header className="bg-white border-b border-surface-200">
-        <div className="max-w-7xl mx-auto px-6 py-12 md:py-16">
-          <div className="max-w-2xl">
-            <p className="text-overline text-brand-700 mb-3 uppercase tracking-widest font-semibold">
-              Encontre seu médico
-            </p>
-            <h1 className="text-4xl md:text-display font-heading font-bold text-surface-900 leading-tight">
-              Cannabis medicinal com médicos prescritores de confiança.
-            </h1>
-            <p className="mt-4 text-body-lg text-surface-600 max-w-xl">
-              Médicos verificados, com experiência em cannabis medicinal. Escolha pelo seu perfil,
-              agende a consulta e comece o tratamento.
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3 text-small text-surface-500">
-              <span className="inline-flex items-center gap-2">
-                <Stethoscope className="h-4 w-4" /> {total} médico{total === 1 ? '' : 's'} disponíve{total === 1 ? 'l' : 'is'}
-              </span>
+      {/* Hero — banner editorial 2 colunas */}
+      <header className="bg-white border-b border-surface-200 relative overflow-hidden">
+        {/* Decorativo: orb sage atrás */}
+        <div aria-hidden className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-sage-100 blur-3xl opacity-60 pointer-events-none" />
+        <div aria-hidden className="absolute -bottom-32 left-1/3 w-96 h-96 rounded-full bg-brand-50 blur-3xl opacity-50 pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-6 py-16 md:py-20 relative">
+          <div className="grid lg:grid-cols-[1.3fr_1fr] gap-12 items-center">
+            {/* Coluna texto */}
+            <div>
+              <p className="text-overline text-brand-700 mb-4 uppercase tracking-widest font-semibold">
+                Encontre seu médico
+              </p>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-surface-900 leading-[1.05] tracking-tight">
+                Cannabis medicinal com médicos{' '}
+                <span className="text-sage-700">prescritores</span> de confiança.
+              </h1>
+              <p className="mt-6 text-body-lg text-surface-600 max-w-xl leading-relaxed">
+                Médicos verificados, com experiência em cannabis medicinal. Escolha pelo seu perfil,
+                agende a consulta e comece o tratamento.
+              </p>
+
+              {/* Trust signals */}
+              <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">
+                <div className="flex flex-col">
+                  <p className="font-heading font-bold text-2xl text-surface-900">{total}+</p>
+                  <p className="text-caption text-surface-500 uppercase tracking-wider">Médicos</p>
+                </div>
+                <div className="flex flex-col">
+                  <p className="font-heading font-bold text-2xl text-surface-900">48h</p>
+                  <p className="text-caption text-surface-500 uppercase tracking-wider">Primeira consulta</p>
+                </div>
+                <div className="flex flex-col">
+                  <p className="font-heading font-bold text-2xl text-surface-900">4.9</p>
+                  <p className="text-caption text-surface-500 uppercase tracking-wider">
+                    <Star className="h-3 w-3 inline fill-warning-500 text-warning-500" /> Avaliação
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Coluna banner editorial */}
+            <div className="relative hidden lg:block">
+              <div className="relative p-8 rounded-3xl bg-gradient-to-br from-sage-700 to-sage-800 text-white shadow-xl">
+                {/* Pattern decorativo */}
+                <div aria-hidden className="absolute inset-0 rounded-3xl opacity-10" style={{
+                  backgroundImage: 'radial-gradient(circle at 20% 20%, white 1px, transparent 1px), radial-gradient(circle at 80% 60%, white 1px, transparent 1px)',
+                  backgroundSize: '32px 32px, 48px 48px',
+                }} />
+
+                <div className="relative space-y-6">
+                  {/* Selo regulatório */}
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium backdrop-blur-sm">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Regulamentado ANVISA
+                  </div>
+
+                  {/* Como funciona — 3 passos */}
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                        <Stethoscope className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">1. Escolha seu médico</p>
+                        <p className="text-xs text-sage-100 mt-0.5">Perfil completo, especialidades e avaliações.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                        <Calendar className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">2. Agende a consulta</p>
+                        <p className="text-xs text-sage-100 mt-0.5">Horários disponíveis em até 48 horas.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                        <HeartPulse className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">3. Comece o tratamento</p>
+                        <p className="text-xs text-sage-100 mt-0.5">Receita digital + acompanhamento contínuo.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Selo brand pequeno */}
+                  <div className="pt-4 border-t border-white/10 flex items-center gap-2">
+                    <Award className="h-4 w-4 text-brand-400" />
+                    <p className="text-xs text-sage-100">
+                      Médicos com formação em cannabis medicinal
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
