@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Providers } from './providers'
+import { Toaster } from '@/components/ui/toast'
 
 export const metadata: Metadata = {
   title: 'WiseDrops | Cannabis Medicinal com Medicos Prescritores',
@@ -51,7 +52,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   )
