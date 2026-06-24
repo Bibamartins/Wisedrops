@@ -1,8 +1,29 @@
 'use client'
 
+import * as React from 'react'
 import { useState } from 'react'
+import {
+  User,
+  MapPin,
+  Shield,
+  CreditCard,
+  Bell,
+  ClipboardList,
+  LogOut,
+  type LucideIcon,
+} from 'lucide-react'
+import { signOut } from 'next-auth/react'
+import { cn } from '@/lib/utils'
+import { PageHeader } from '@/components/ui/page-header'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Avatar } from '@/components/ui/avatar'
 
-// --- Types ---
+// ---------------------------------------------------------------------------
+// Tipos — preservados do original
+// ---------------------------------------------------------------------------
+
 interface Address {
   id: string
   label: string
@@ -42,7 +63,10 @@ interface PaymentMethod {
   isDefault: boolean
 }
 
-// --- Mock Data ---
+// ---------------------------------------------------------------------------
+// Mock data — preservado do original
+// ---------------------------------------------------------------------------
+
 const MOCK_PROFILE = {
   name: 'Maria Silva',
   email: 'maria.silva@email.com',
@@ -60,7 +84,7 @@ const MOCK_ADDRESSES: Address[] = [
     number: '123',
     complement: 'Apto 42',
     neighborhood: 'Jardim Paulista',
-    city: 'Sao Paulo',
+    city: 'São Paulo',
     state: 'SP',
     zip: '01401-000',
     isDefault: true,
@@ -70,9 +94,9 @@ const MOCK_ADDRESSES: Address[] = [
     label: 'Trabalho',
     street: 'Av. Paulista',
     number: '1578',
-    complement: '12o andar',
+    complement: '12° andar',
     neighborhood: 'Bela Vista',
-    city: 'Sao Paulo',
+    city: 'São Paulo',
     state: 'SP',
     zip: '01310-200',
     isDefault: false,
@@ -82,9 +106,9 @@ const MOCK_ADDRESSES: Address[] = [
 const MOCK_NOTIFICATIONS: NotificationPref[] = [
   { type: 'dose_reminder', label: 'Lembrete de Dose', email: false, push: true, whatsapp: true },
   { type: 'appointment', label: 'Consultas e Agendamentos', email: true, push: true, whatsapp: true },
-  { type: 'order_update', label: 'Atualizacao de Pedido', email: true, push: true, whatsapp: false },
+  { type: 'order_update', label: 'Atualização de Pedido', email: true, push: true, whatsapp: false },
   { type: 'prescription_expiry', label: 'Vencimento de Receita', email: true, push: true, whatsapp: true },
-  { type: 'promotions', label: 'Promocoes e Novidades', email: true, push: false, whatsapp: false },
+  { type: 'promotions', label: 'Promoções e Novidades', email: true, push: false, whatsapp: false },
   { type: 'lab_results', label: 'Resultados de Exames', email: true, push: true, whatsapp: false },
 ]
 
@@ -100,7 +124,7 @@ const MOCK_ANVISA_AUTHS: AnvisaAuth[] = [
   {
     id: 'anv-002',
     protocol: 'ANVISA-2026-000623',
-    product: 'THC:CBD 1:1 Oleo 10mg/mL',
+    product: 'THC:CBD 1:1 Óleo 10mg/mL',
     status: 'ACTIVE',
     issuedDate: '2026-01-15',
     expiresDate: '2027-01-15',
@@ -121,403 +145,647 @@ const MOCK_PAYMENT_METHODS: PaymentMethod[] = [
   { id: 'pay-003', type: 'pix', label: 'PIX — CPF', isDefault: false },
 ]
 
-export default function ProfilePage() {
-  const [activeSection, setActiveSection] = useState<string>('personal')
+// ---------------------------------------------------------------------------
+// Utilitário de eyebrow editorial
+// ---------------------------------------------------------------------------
+
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-overline text-surface-400 uppercase text-[11px] font-semibold mb-4 tracking-widest">
+      {children}
+    </p>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Toggle de notificação
+// ---------------------------------------------------------------------------
+
+interface ToggleSwitchProps {
+  checked: boolean
+  onChange: () => void
+  label: string
+}
+
+function ToggleSwitch({ checked, onChange, label }: ToggleSwitchProps) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onChange}
+      className={cn(
+        'relative w-11 h-6 rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
+        checked ? 'bg-brand-600' : 'bg-surface-200'
+      )}
+    >
+      <span
+        className={cn(
+          'absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-xs transition-transform duration-150',
+          checked ? 'translate-x-5' : 'translate-x-0.5'
+        )}
+      />
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Seção: Dados pessoais
+// ---------------------------------------------------------------------------
+
+function PersonalSection() {
   const [profile, setProfile] = useState(MOCK_PROFILE)
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS)
   const [isEditing, setIsEditing] = useState(false)
   const [editProfile, setEditProfile] = useState(MOCK_PROFILE)
-  const [lgpdExportRequested, setLgpdExportRequested] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  const sections = [
-    { key: 'personal', label: 'Dados Pessoais', icon: '👤' },
-    { key: 'addresses', label: 'Enderecos', icon: '📍' },
-    { key: 'notifications', label: 'Notificacoes', icon: '🔔' },
-    { key: 'anvisa', label: 'Autorizacoes ANVISA', icon: '📋' },
-    { key: 'payment', label: 'Pagamento', icon: '💳' },
-    { key: 'lgpd', label: 'Privacidade (LGPD)', icon: '🔒' },
-  ]
-
-  const toggleNotification = (index: number, channel: 'email' | 'push' | 'whatsapp') => {
-    setNotifications((prev) =>
-      prev.map((n, i) => (i === index ? { ...n, [channel]: !n[channel] } : n))
-    )
-  }
-
-  const handleSaveProfile = () => {
+  function handleSave() {
     setProfile(editProfile)
     setIsEditing(false)
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-heading font-bold text-surface-900">Meu Perfil</h1>
-        <p className="text-surface-500">Gerencie suas informacoes e preferencias</p>
+    <Card variant="default" padding="lg">
+      <Eyebrow>Dados pessoais</Eyebrow>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="font-heading font-semibold text-surface-900">
+          Informações da conta
+        </h2>
+        {!isEditing ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setIsEditing(true); setEditProfile(profile) }}
+          >
+            Editar
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditing(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSave}
+            >
+              Salvar
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Profile Summary Card */}
-      <div className="p-6 rounded-2xl gradient-brand text-white">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
-            {profile.name.split(' ').map((n) => n[0]).join('')}
-          </div>
-          <div>
-            <p className="text-xl font-heading font-bold">{profile.name}</p>
-            <p className="text-sm text-white/70">{profile.email}</p>
-            <p className="text-sm text-white/70">{profile.phone}</p>
-          </div>
+      {!isEditing ? (
+        <div className="space-y-0 divide-y divide-surface-100">
+          {[
+            { label: 'Nome completo', value: profile.name },
+            { label: 'E-mail', value: profile.email },
+            { label: 'Telefone', value: profile.phone },
+            { label: 'CPF', value: profile.cpf },
+            { label: 'Data de nascimento', value: new Date(profile.birthDate).toLocaleDateString('pt-BR') },
+            { label: 'Gênero', value: profile.gender },
+          ].map((field) => (
+            <div key={field.label} className="flex items-center justify-between py-3">
+              <span className="text-sm text-surface-500">{field.label}</span>
+              <span className="text-sm font-medium text-surface-900">{field.value}</span>
+            </div>
+          ))}
         </div>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Section Navigation */}
-        <div className="lg:w-64 flex-shrink-0">
-          <div className="p-2 rounded-2xl bg-white border border-surface-200 shadow-sm">
-            {sections.map((section) => (
-              <button
-                key={section.key}
-                onClick={() => setActiveSection(section.key)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition text-left ${
-                  activeSection === section.key
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-surface-600 hover:bg-surface-50'
-                }`}
+      ) : (
+        <div className="space-y-4">
+          {[
+            { label: 'Nome completo', key: 'name' as const, type: 'text' },
+            { label: 'E-mail', key: 'email' as const, type: 'email' },
+            { label: 'Telefone', key: 'phone' as const, type: 'tel' },
+          ].map((field) => (
+            <div key={field.key}>
+              <label
+                htmlFor={`profile-${field.key}`}
+                className="block text-sm font-medium text-surface-700 mb-1.5"
               >
-                <span>{section.icon}</span>
-                {section.label}
-              </button>
-            ))}
+                {field.label}
+              </label>
+              <input
+                id={`profile-${field.key}`}
+                type={field.type}
+                value={editProfile[field.key]}
+                onChange={(e) => setEditProfile((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                className={cn(
+                  'w-full px-3 py-2.5 rounded text-sm text-surface-800 bg-white',
+                  'border border-surface-300 placeholder:text-surface-400',
+                  'transition-colors duration-150',
+                  'focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15',
+                )}
+              />
+            </div>
+          ))}
+          {/* CPF — somente leitura */}
+          <div>
+            <label htmlFor="profile-cpf" className="block text-sm font-medium text-surface-700 mb-1.5">
+              CPF
+            </label>
+            <input
+              id="profile-cpf"
+              type="text"
+              value={profile.cpf}
+              disabled
+              aria-describedby="cpf-note"
+              className={cn(
+                'w-full px-3 py-2.5 rounded text-sm',
+                'border border-surface-100 bg-surface-50 text-surface-400 cursor-not-allowed',
+              )}
+            />
+            <p id="cpf-note" className="text-xs text-surface-400 mt-1">
+              CPF não pode ser alterado
+            </p>
+          </div>
+          {/* Gênero */}
+          <div>
+            <label htmlFor="profile-gender" className="block text-sm font-medium text-surface-700 mb-1.5">
+              Gênero
+            </label>
+            <select
+              id="profile-gender"
+              value={editProfile.gender}
+              onChange={(e) => setEditProfile((prev) => ({ ...prev, gender: e.target.value }))}
+              className={cn(
+                'w-full px-3 py-2.5 rounded text-sm text-surface-800 bg-white',
+                'border border-surface-300',
+                'transition-colors duration-150',
+                'focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15',
+              )}
+            >
+              <option>Feminino</option>
+              <option>Masculino</option>
+              <option>Não-binário</option>
+              <option>Prefiro não informar</option>
+            </select>
           </div>
         </div>
+      )}
+    </Card>
+  )
+}
 
-        {/* Section Content */}
-        <div className="flex-1">
-          {/* === Personal Info === */}
-          {activeSection === 'personal' && (
-            <div className="p-6 rounded-2xl bg-white border border-surface-200 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-heading font-semibold text-surface-900">Dados Pessoais</h2>
-                {!isEditing ? (
-                  <button
-                    onClick={() => { setIsEditing(true); setEditProfile(profile) }}
-                    className="px-4 py-2 rounded-lg border border-surface-200 text-surface-700 text-sm font-medium hover:bg-surface-50 transition"
-                  >
-                    Editar
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 rounded-lg border border-surface-200 text-surface-500 text-sm font-medium hover:bg-surface-50 transition"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleSaveProfile}
-                      className="px-4 py-2 rounded-lg gradient-brand text-white text-sm font-medium hover:opacity-90 transition"
-                    >
-                      Salvar
-                    </button>
-                  </div>
+// ---------------------------------------------------------------------------
+// Seção: Endereços
+// ---------------------------------------------------------------------------
+
+function AddressSection() {
+  return (
+    <Card variant="default" padding="lg">
+      <Eyebrow>Entrega</Eyebrow>
+      <h2 className="font-heading font-semibold text-surface-900 mb-6">
+        Endereços
+      </h2>
+
+      <div className="space-y-4">
+        {MOCK_ADDRESSES.map((addr) => (
+          <div
+            key={addr.id}
+            className="p-4 rounded-lg bg-surface-50 border border-surface-200"
+          >
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-surface-900 text-sm">{addr.label}</span>
+                {addr.isDefault && (
+                  <Badge variant="brand" size="sm">Padrão</Badge>
                 )}
               </div>
-
-              {!isEditing ? (
-                <div className="space-y-4">
-                  {[
-                    { label: 'Nome Completo', value: profile.name },
-                    { label: 'E-mail', value: profile.email },
-                    { label: 'Telefone', value: profile.phone },
-                    { label: 'CPF', value: profile.cpf },
-                    { label: 'Data de Nascimento', value: new Date(profile.birthDate).toLocaleDateString('pt-BR') },
-                    { label: 'Genero', value: profile.gender },
-                  ].map((field) => (
-                    <div key={field.label} className="flex items-center justify-between py-3 border-b border-surface-100 last:border-0">
-                      <span className="text-sm text-surface-500">{field.label}</span>
-                      <span className="text-sm font-medium text-surface-900">{field.value}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {[
-                    { label: 'Nome Completo', key: 'name' as const },
-                    { label: 'E-mail', key: 'email' as const },
-                    { label: 'Telefone', key: 'phone' as const },
-                  ].map((field) => (
-                    <div key={field.key}>
-                      <label className="block text-sm text-surface-500 mb-1">{field.label}</label>
-                      <input
-                        type="text"
-                        value={editProfile[field.key]}
-                        onChange={(e) => setEditProfile((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl border border-surface-200 bg-white text-surface-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                      />
-                    </div>
-                  ))}
-                  <div>
-                    <label className="block text-sm text-surface-500 mb-1">CPF</label>
-                    <input
-                      type="text"
-                      value={profile.cpf}
-                      disabled
-                      className="w-full px-4 py-3 rounded-xl border border-surface-100 bg-surface-50 text-surface-400 cursor-not-allowed"
-                    />
-                    <p className="text-xs text-surface-400 mt-1">CPF nao pode ser alterado</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-surface-500 mb-1">Genero</label>
-                    <select
-                      value={editProfile.gender}
-                      onChange={(e) => setEditProfile((prev) => ({ ...prev, gender: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border border-surface-200 bg-white text-surface-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    >
-                      <option>Feminino</option>
-                      <option>Masculino</option>
-                      <option>Nao-binario</option>
-                      <option>Prefiro nao informar</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* === Addresses === */}
-          {activeSection === 'addresses' && (
-            <div className="space-y-4">
-              {MOCK_ADDRESSES.map((addr) => (
-                <div key={addr.id} className="p-5 rounded-2xl bg-white border border-surface-200 shadow-sm">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-heading font-semibold text-surface-900">{addr.label}</span>
-                      {addr.isDefault && (
-                        <span className="px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 text-xs font-medium">
-                          Padrao
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="text-sm text-brand-600 hover:underline">Editar</button>
-                      {!addr.isDefault && (
-                        <button className="text-sm text-red-500 hover:underline">Remover</button>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-surface-700">
-                    {addr.street}, {addr.number}
-                    {addr.complement && ` — ${addr.complement}`}
-                  </p>
-                  <p className="text-sm text-surface-500">
-                    {addr.neighborhood} — {addr.city}/{addr.state}
-                  </p>
-                  <p className="text-sm text-surface-500">CEP: {addr.zip}</p>
-                </div>
-              ))}
-              <button className="w-full p-4 rounded-2xl border-2 border-dashed border-surface-300 text-surface-500 font-medium hover:border-brand-300 hover:text-brand-600 transition text-center">
-                + Adicionar Novo Endereco
-              </button>
-            </div>
-          )}
-
-          {/* === Notifications === */}
-          {activeSection === 'notifications' && (
-            <div className="p-6 rounded-2xl bg-white border border-surface-200 shadow-sm">
-              <h2 className="font-heading font-semibold text-surface-900 mb-6">Preferencias de Notificacao</h2>
-
-              {/* Header */}
-              <div className="grid grid-cols-[1fr,auto,auto,auto] gap-4 mb-4 pb-3 border-b border-surface-200">
-                <span className="text-xs text-surface-500 uppercase tracking-wide">Tipo</span>
-                <span className="text-xs text-surface-500 uppercase tracking-wide w-16 text-center">E-mail</span>
-                <span className="text-xs text-surface-500 uppercase tracking-wide w-16 text-center">Push</span>
-                <span className="text-xs text-surface-500 uppercase tracking-wide w-20 text-center">WhatsApp</span>
+              <div className="flex gap-3">
+                <button className="text-xs font-medium text-brand-700 hover:text-brand-800 transition-colors duration-150">
+                  Editar
+                </button>
+                {!addr.isDefault && (
+                  <button className="text-xs font-medium text-error-600 hover:text-error-700 transition-colors duration-150">
+                    Remover
+                  </button>
+                )}
               </div>
-
-              {notifications.map((notif, i) => (
-                <div key={notif.type} className="grid grid-cols-[1fr,auto,auto,auto] gap-4 py-3 items-center border-b border-surface-100 last:border-0">
-                  <span className="text-sm text-surface-700">{notif.label}</span>
-                  {(['email', 'push', 'whatsapp'] as const).map((channel) => (
-                    <div key={channel} className={channel === 'whatsapp' ? 'w-20 flex justify-center' : 'w-16 flex justify-center'}>
-                      <button
-                        onClick={() => toggleNotification(i, channel)}
-                        className={`w-11 h-6 rounded-full transition relative ${
-                          notif[channel] ? 'bg-brand-500' : 'bg-surface-200'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                            notif[channel] ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ))}
             </div>
-          )}
+            <p className="text-sm text-surface-700">
+              {addr.street}, {addr.number}
+              {addr.complement && ` — ${addr.complement}`}
+            </p>
+            <p className="text-sm text-surface-500">
+              {addr.neighborhood} — {addr.city}/{addr.state}
+            </p>
+            <p className="text-sm text-surface-500">CEP: {addr.zip}</p>
+          </div>
+        ))}
 
-          {/* === ANVISA Authorizations === */}
-          {activeSection === 'anvisa' && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200">
-                <div className="flex items-start gap-3">
-                  <span className="text-xl">ℹ️</span>
-                  <p className="text-sm text-blue-800">
-                    As autorizacoes ANVISA sao emitidas automaticamente quando voce compra um produto importado.
-                    Cada autorizacao e valida por 1 ano.
-                  </p>
-                </div>
+        <button
+          className={cn(
+            'w-full py-4 rounded-lg border-2 border-dashed border-surface-300 text-surface-500',
+            'text-sm font-medium transition-colors duration-150',
+            'hover:border-brand-300 hover:text-brand-700',
+          )}
+        >
+          + Adicionar novo endereço
+        </button>
+      </div>
+    </Card>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Seção: Notificações
+// ---------------------------------------------------------------------------
+
+function NotificationsSection() {
+  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS)
+
+  function toggle(index: number, channel: 'email' | 'push' | 'whatsapp') {
+    setNotifications((prev) =>
+      prev.map((n, i) => (i === index ? { ...n, [channel]: !n[channel] } : n))
+    )
+  }
+
+  return (
+    <Card variant="default" padding="lg">
+      <Eyebrow>Comunicação</Eyebrow>
+      <h2 className="font-heading font-semibold text-surface-900 mb-6">
+        Preferências de notificação
+      </h2>
+
+      <div>
+        {/* Cabeçalho */}
+        <div
+          className="grid gap-4 mb-3 pb-3 border-b border-surface-200"
+          style={{ gridTemplateColumns: '1fr auto auto auto' }}
+          aria-hidden="true"
+        >
+          <span className="text-xs text-surface-400 font-medium uppercase tracking-wide">Tipo</span>
+          <span className="text-xs text-surface-400 font-medium uppercase tracking-wide w-14 text-center">E-mail</span>
+          <span className="text-xs text-surface-400 font-medium uppercase tracking-wide w-14 text-center">Push</span>
+          <span className="text-xs text-surface-400 font-medium uppercase tracking-wide w-16 text-center">WhatsApp</span>
+        </div>
+
+        {notifications.map((notif, i) => (
+          <div
+            key={notif.type}
+            className="grid gap-4 py-3 items-center border-b border-surface-100 last:border-0"
+            style={{ gridTemplateColumns: '1fr auto auto auto' }}
+          >
+            <span className="text-sm text-surface-700">{notif.label}</span>
+            <div className="w-14 flex justify-center">
+              <ToggleSwitch
+                checked={notif.email}
+                onChange={() => toggle(i, 'email')}
+                label={`${notif.label} — E-mail`}
+              />
+            </div>
+            <div className="w-14 flex justify-center">
+              <ToggleSwitch
+                checked={notif.push}
+                onChange={() => toggle(i, 'push')}
+                label={`${notif.label} — Push`}
+              />
+            </div>
+            <div className="w-16 flex justify-center">
+              <ToggleSwitch
+                checked={notif.whatsapp}
+                onChange={() => toggle(i, 'whatsapp')}
+                label={`${notif.label} — WhatsApp`}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Seção: Autorizações ANVISA
+// ---------------------------------------------------------------------------
+
+const ANVISA_STATUS_BADGE: Record<AnvisaAuth['status'], React.ComponentProps<typeof Badge>['variant']> = {
+  ACTIVE:  'success',
+  PENDING: 'warning',
+  EXPIRED: 'neutral',
+}
+
+const ANVISA_STATUS_LABEL: Record<AnvisaAuth['status'], string> = {
+  ACTIVE:  'Ativa',
+  PENDING: 'Pendente',
+  EXPIRED: 'Expirada',
+}
+
+function AnvisaSection() {
+  return (
+    <Card variant="default" padding="lg">
+      <Eyebrow>Regulatório</Eyebrow>
+      <h2 className="font-heading font-semibold text-surface-900 mb-4">
+        Autorizações ANVISA
+      </h2>
+
+      <div className="p-4 rounded-lg bg-info-50 border border-info-100 mb-5 text-sm text-info-700">
+        As autorizações ANVISA são emitidas automaticamente ao adquirir um produto importado.
+        Cada autorização é válida por 1 ano.
+      </div>
+
+      <div className="space-y-3">
+        {MOCK_ANVISA_AUTHS.map((auth) => (
+          <div
+            key={auth.id}
+            className="p-4 rounded-lg border border-surface-200 bg-white"
+          >
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="min-w-0">
+                <p className="font-mono text-sm font-medium text-surface-900">{auth.protocol}</p>
+                <p className="text-sm text-surface-600 mt-0.5">{auth.product}</p>
               </div>
-
-              {MOCK_ANVISA_AUTHS.map((auth) => (
-                <div key={auth.id} className="p-5 rounded-2xl bg-white border border-surface-200 shadow-sm">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-mono text-sm font-medium text-surface-900">{auth.protocol}</p>
-                      <p className="text-sm text-surface-600 mt-1">{auth.product}</p>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        auth.status === 'ACTIVE'
-                          ? 'bg-brand-100 text-brand-700'
-                          : auth.status === 'PENDING'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-surface-100 text-surface-500'
-                      }`}
-                    >
-                      {auth.status === 'ACTIVE' && 'Ativa'}
-                      {auth.status === 'PENDING' && 'Pendente'}
-                      {auth.status === 'EXPIRED' && 'Expirada'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-6 text-xs text-surface-500">
-                    <span>Emissao: {new Date(auth.issuedDate).toLocaleDateString('pt-BR')}</span>
-                    <span>Validade: {new Date(auth.expiresDate).toLocaleDateString('pt-BR')}</span>
-                  </div>
-                </div>
-              ))}
+              <Badge variant={ANVISA_STATUS_BADGE[auth.status]}>
+                {ANVISA_STATUS_LABEL[auth.status]}
+              </Badge>
             </div>
-          )}
-
-          {/* === Payment Methods === */}
-          {activeSection === 'payment' && (
-            <div className="space-y-4">
-              {MOCK_PAYMENT_METHODS.map((method) => (
-                <div key={method.id} className="p-5 rounded-2xl bg-white border border-surface-200 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-8 rounded-lg bg-surface-100 flex items-center justify-center">
-                        <span className="text-lg">{method.type === 'pix' ? '⚡' : '💳'}</span>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-surface-900">
-                            {method.type === 'credit_card'
-                              ? `${method.brand} **** ${method.last4}`
-                              : method.label}
-                          </p>
-                          {method.isDefault && (
-                            <span className="px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 text-xs font-medium">
-                              Padrao
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-surface-500">
-                          {method.type === 'credit_card' ? 'Cartao de Credito' : 'PIX'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {!method.isDefault && (
-                        <button className="text-xs text-brand-600 hover:underline">Tornar padrao</button>
-                      )}
-                      <button className="text-xs text-red-500 hover:underline">Remover</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <button className="w-full p-4 rounded-2xl border-2 border-dashed border-surface-300 text-surface-500 font-medium hover:border-brand-300 hover:text-brand-600 transition text-center">
-                + Adicionar Forma de Pagamento
-              </button>
+            <div className="flex items-center gap-4 text-xs text-surface-500">
+              <span>Emissão: {new Date(auth.issuedDate).toLocaleDateString('pt-BR')}</span>
+              <span>Validade: {new Date(auth.expiresDate).toLocaleDateString('pt-BR')}</span>
             </div>
-          )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
 
-          {/* === LGPD === */}
-          {activeSection === 'lgpd' && (
-            <div className="space-y-6">
-              <div className="p-6 rounded-2xl bg-white border border-surface-200 shadow-sm">
-                <h2 className="font-heading font-semibold text-surface-900 mb-2">Privacidade e Dados</h2>
-                <p className="text-sm text-surface-500 mb-6">
-                  Em conformidade com a Lei Geral de Protecao de Dados (LGPD — Lei 13.709/2018),
-                  voce pode exercer seus direitos sobre os dados pessoais armazenados pela WiseDrops.
+// ---------------------------------------------------------------------------
+// Seção: Pagamento
+// ---------------------------------------------------------------------------
+
+function PaymentSection() {
+  return (
+    <Card variant="default" padding="lg">
+      <Eyebrow>Financeiro</Eyebrow>
+      <h2 className="font-heading font-semibold text-surface-900 mb-5">
+        Formas de pagamento
+      </h2>
+
+      <div className="space-y-3">
+        {MOCK_PAYMENT_METHODS.map((method) => (
+          <div
+            key={method.id}
+            className="flex items-center justify-between p-4 rounded-lg border border-surface-200 bg-white"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-8 rounded-md bg-surface-100 flex items-center justify-center shrink-0" aria-hidden="true">
+                <CreditCard size={16} strokeWidth={1.5} className="text-surface-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-surface-900">
+                    {method.type === 'credit_card'
+                      ? `${method.brand} **** ${method.last4}`
+                      : method.label}
+                  </p>
+                  {method.isDefault && (
+                    <Badge variant="brand" size="sm">Padrão</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-surface-500">
+                  {method.type === 'credit_card' ? 'Cartão de crédito' : 'PIX'}
                 </p>
-
-                {/* Export Data */}
-                <div className="p-5 rounded-xl bg-surface-50 border border-surface-200 mb-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-medium text-surface-900 mb-1">Exportar Meus Dados</h3>
-                      <p className="text-sm text-surface-500">
-                        Solicite uma copia de todos os dados pessoais armazenados. Voce recebera
-                        um arquivo por e-mail em ate 15 dias uteis.
-                      </p>
-                    </div>
-                  </div>
-                  {lgpdExportRequested ? (
-                    <div className="mt-3 flex items-center gap-2 text-sm text-brand-600">
-                      <span>✅</span> Solicitacao enviada. Voce recebera os dados por e-mail.
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setLgpdExportRequested(true)}
-                      className="mt-3 px-4 py-2 rounded-lg border border-brand-300 text-brand-700 text-sm font-medium hover:bg-brand-50 transition"
-                    >
-                      Solicitar Exportacao
-                    </button>
-                  )}
-                </div>
-
-                {/* Delete Account */}
-                <div className="p-5 rounded-xl bg-red-50 border border-red-200">
-                  <h3 className="font-medium text-red-800 mb-1">Excluir Minha Conta</h3>
-                  <p className="text-sm text-red-600 mb-3">
-                    Ao excluir sua conta, todos os seus dados serao permanentemente removidos. Dados
-                    de prescricao e prontuario serao retidos pelo prazo legal (20 anos). Esta acao
-                    e irreversivel.
-                  </p>
-                  {showDeleteConfirm ? (
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium text-red-800">
-                        Tem certeza? Esta acao nao pode ser desfeita.
-                      </p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setShowDeleteConfirm(false)}
-                          className="px-4 py-2 rounded-lg border border-surface-200 text-surface-600 text-sm font-medium hover:bg-surface-50 transition"
-                        >
-                          Cancelar
-                        </button>
-                        <button className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition">
-                          Confirmar Exclusao
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="px-4 py-2 rounded-lg border border-red-300 text-red-700 text-sm font-medium hover:bg-red-100 transition"
-                    >
-                      Excluir Conta
-                    </button>
-                  )}
-                </div>
               </div>
             </div>
+            <div className="flex gap-3 shrink-0">
+              {!method.isDefault && (
+                <button className="text-xs font-medium text-brand-700 hover:text-brand-800 transition-colors duration-150">
+                  Tornar padrão
+                </button>
+              )}
+              <button className="text-xs font-medium text-error-600 hover:text-error-700 transition-colors duration-150">
+                Remover
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <button
+          className={cn(
+            'w-full py-4 rounded-lg border-2 border-dashed border-surface-300 text-surface-500',
+            'text-sm font-medium transition-colors duration-150',
+            'hover:border-brand-300 hover:text-brand-700',
           )}
+        >
+          + Adicionar forma de pagamento
+        </button>
+      </div>
+    </Card>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Seção: Segurança + Encerrar sessão
+// ---------------------------------------------------------------------------
+
+function SecuritySection() {
+  const [lgpdExportRequested, setLgpdExportRequested] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  return (
+    <div className="space-y-4">
+      {/* Trocar senha */}
+      <Card variant="default" padding="lg">
+        <Eyebrow>Segurança</Eyebrow>
+        <h2 className="font-heading font-semibold text-surface-900 mb-5">
+          Senha e acesso
+        </h2>
+
+        <Button variant="outline" size="md">
+          Alterar senha
+        </Button>
+
+        <div className="mt-6 pt-6 border-t border-surface-100">
+          <p className="text-sm text-surface-600 mb-4">
+            Ao encerrar a sessão, você será redirecionado para a tela de login.
+          </p>
+          <Button
+            variant="ghost"
+            size="md"
+            iconLeft={<LogOut size={16} strokeWidth={2} />}
+            onClick={() => void signOut({ callbackUrl: '/login' })}
+            className="text-error-600 hover:text-error-700 hover:bg-error-50"
+          >
+            Encerrar sessão
+          </Button>
+        </div>
+      </Card>
+
+      {/* LGPD */}
+      <Card variant="default" padding="lg">
+        <Eyebrow>Privacidade</Eyebrow>
+        <h2 className="font-heading font-semibold text-surface-900 mb-2">
+          Seus dados (LGPD)
+        </h2>
+        <p className="text-sm text-surface-500 mb-6 leading-relaxed">
+          Em conformidade com a Lei Geral de Proteção de Dados (Lei 13.709/2018),
+          você pode exercer seus direitos sobre os dados pessoais armazenados pela WiseDrops.
+        </p>
+
+        {/* Exportar */}
+        <div className="p-4 rounded-lg bg-surface-50 border border-surface-200 mb-4">
+          <h3 className="text-sm font-semibold text-surface-900 mb-1">Exportar meus dados</h3>
+          <p className="text-sm text-surface-500 mb-3">
+            Solicite uma cópia de todos os dados pessoais armazenados. Você receberá
+            um arquivo por e-mail em até 15 dias úteis.
+          </p>
+          {lgpdExportRequested ? (
+            <p className="text-sm text-success-700 font-medium">
+              Solicitação enviada. Você receberá os dados por e-mail.
+            </p>
+          ) : (
+            <Button
+              variant="sage"
+              size="sm"
+              onClick={() => setLgpdExportRequested(true)}
+            >
+              Solicitar exportação
+            </Button>
+          )}
+        </div>
+
+        {/* Excluir conta */}
+        <div className="p-4 rounded-lg bg-error-50 border border-error-100">
+          <h3 className="text-sm font-semibold text-error-800 mb-1">Excluir minha conta</h3>
+          <p className="text-sm text-error-600 mb-3 leading-relaxed">
+            Ao excluir sua conta, todos os seus dados serão permanentemente removidos.
+            Dados de prescrição e prontuário serão retidos pelo prazo legal (20 anos).
+            Esta ação é irreversível.
+          </p>
+          {showDeleteConfirm ? (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-error-800">
+                Tem certeza? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                >
+                  Confirmar exclusão
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-error-700 hover:text-error-800 hover:bg-error-100 border border-error-300"
+            >
+              Excluir conta
+            </Button>
+          )}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Navegação lateral das seções
+// ---------------------------------------------------------------------------
+
+type SectionKey = 'personal' | 'addresses' | 'notifications' | 'anvisa' | 'payment' | 'security'
+
+const SECTIONS: {
+  key: SectionKey
+  label: string
+  icon: LucideIcon
+}[] = [
+  { key: 'personal', label: 'Dados pessoais', icon: User },
+  { key: 'addresses', label: 'Endereços', icon: MapPin },
+  { key: 'notifications', label: 'Notificações', icon: Bell },
+  { key: 'anvisa', label: 'ANVISA', icon: ClipboardList },
+  { key: 'payment', label: 'Pagamento', icon: CreditCard },
+  { key: 'security', label: 'Segurança', icon: Shield },
+]
+
+// ---------------------------------------------------------------------------
+// Página principal
+// ---------------------------------------------------------------------------
+
+export default function ProfilePage() {
+  const [activeSection, setActiveSection] = useState<SectionKey>('personal')
+
+  // Mock do nome do usuário (em produção viria de useSession)
+  const profileName = MOCK_PROFILE.name
+
+  return (
+    <div>
+      <PageHeader
+        title="Meu perfil"
+        subtitle="Gerencie suas informações e preferências."
+        className="-mx-4 -mt-4 lg:-mx-8 lg:-mt-8"
+      />
+
+      <div className="pt-6">
+        {/* Avatar + nome — bloco editorial */}
+        <div className="flex items-center gap-5 mb-8">
+          <Avatar name={profileName} size="xl" />
+          <div>
+            <p className="font-heading font-semibold text-surface-900 text-lg">{profileName}</p>
+            <p className="text-sm text-surface-500 mt-0.5">{MOCK_PROFILE.email}</p>
+            <p className="text-xs text-surface-400 mt-0.5">
+              Upload de foto disponível em breve
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Navegação lateral */}
+          <nav
+            className="lg:w-56 shrink-0"
+            aria-label="Seções do perfil"
+          >
+            <Card variant="default" padding="none">
+              <ul className="p-2">
+                {SECTIONS.map((section) => {
+                  const Icon = section.icon
+                  const isActive = activeSection === section.key
+                  return (
+                    <li key={section.key}>
+                      <button
+                        onClick={() => setActiveSection(section.key)}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors duration-150 text-left',
+                          isActive
+                            ? 'bg-brand-50 text-brand-700'
+                            : 'text-surface-600 hover:bg-surface-50 hover:text-surface-800'
+                        )}
+                      >
+                        <Icon size={16} strokeWidth={isActive ? 2 : 1.5} className="shrink-0" aria-hidden="true" />
+                        {section.label}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </Card>
+          </nav>
+
+          {/* Conteúdo da seção */}
+          <main className="flex-1 min-w-0">
+            {activeSection === 'personal'      && <PersonalSection />}
+            {activeSection === 'addresses'     && <AddressSection />}
+            {activeSection === 'notifications' && <NotificationsSection />}
+            {activeSection === 'anvisa'        && <AnvisaSection />}
+            {activeSection === 'payment'       && <PaymentSection />}
+            {activeSection === 'security'      && <SecuritySection />}
+          </main>
         </div>
       </div>
     </div>

@@ -145,6 +145,10 @@ const config: Config = {
 
       fontSize: {
         // Escala editorial completa (v2)
+        // v2.1 (recalibração premium): display-xl pra hero dominante (80-120px),
+        // display-2xl pra splash/hero raro. Mantém display original pra h1 muito grande.
+        'display-2xl':['7.5rem',  { lineHeight: '0.92', letterSpacing: '-0.045em', fontWeight: '800' }],
+        'display-xl': ['5rem',    { lineHeight: '0.95', letterSpacing: '-0.04em',  fontWeight: '800' }],
         'display':  ['3rem',     { lineHeight: '1.1',  letterSpacing: '-0.03em',  fontWeight: '700' }],
         'h1':       ['2rem',     { lineHeight: '1.2',  letterSpacing: '-0.02em',  fontWeight: '600' }],
         'h2':       ['1.5rem',   { lineHeight: '1.25', letterSpacing: '-0.015em', fontWeight: '600' }],

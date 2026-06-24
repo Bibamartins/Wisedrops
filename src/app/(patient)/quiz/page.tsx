@@ -1,8 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import {
+  CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
+  Info,
+  Check,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 // ============================================================
 // QUIZ DATA STRUCTURE
@@ -13,7 +23,7 @@ interface QuizOption {
   label: string
   icon?: string
   description?: string
-  followUp?: string // key of conditional question to show
+  followUp?: string
 }
 
 interface QuizQuestion {
@@ -28,52 +38,52 @@ interface QuizQuestion {
   max?: number
   scaleLabels?: { min: string; max: string }
   placeholder?: string
-  conditional?: { questionId: string; values: string[] } // only show if previous answer matches
-  infoBox?: string // educational tip shown below question
+  conditional?: { questionId: string; values: string[] }
+  infoBox?: string
 }
 
 // 8-step quiz with conditional logic
 const QUIZ_QUESTIONS: QuizQuestion[] = [
-  // ── STEP 1: Quem e o paciente ────────────────────────
+  // ── STEP 1: Quem é o paciente ────────────────────────
   {
     id: 'patient_for',
     step: 1,
-    title: 'Para quem e o tratamento?',
-    subtitle: 'Isso nos ajuda a personalizar as perguntas',
+    title: 'Para quem é o acompanhamento?',
+    subtitle: 'Isso nos ajuda a personalizar cada pergunta para você.',
     type: 'single',
     required: true,
     options: [
-      { value: 'myself', label: 'Para mim mesmo(a)', icon: '🙋' },
-      { value: 'child', label: 'Para meu filho(a)', icon: '👶', description: 'Menor de 18 anos' },
-      { value: 'family', label: 'Para um familiar', icon: '👨‍👩‍👧', description: 'Pai, mae, conjuge, etc.' },
-      { value: 'other', label: 'Para outra pessoa', icon: '👤', description: 'Amigo(a) ou conhecido(a)' },
+      { value: 'myself', label: 'Para mim', description: 'Quero iniciar meu próprio tratamento' },
+      { value: 'child', label: 'Para meu filho ou filha', description: 'Menor de 18 anos' },
+      { value: 'family', label: 'Para um familiar', description: 'Pai, mãe, cônjuge ou outro' },
+      { value: 'other', label: 'Para outra pessoa', description: 'Amigo ou conhecido' },
     ],
   },
 
-  // ── STEP 2: Condicoes principais ─────────────────────
+  // ── STEP 2: Condições principais ─────────────────────
   {
     id: 'conditions',
     step: 2,
-    title: 'Quais condicoes voce quer tratar?',
-    subtitle: 'Selecione todas que se aplicam',
+    title: 'O que você quer tratar?',
+    subtitle: 'Selecione tudo que se aplicar — não há resposta errada.',
     type: 'multiple',
     required: true,
     options: [
-      { value: 'insomnia', label: 'Insonia / Dificuldade para Dormir', icon: '😴' },
-      { value: 'anxiety', label: 'Ansiedade', icon: '😰' },
-      { value: 'chronic_pain', label: 'Dor Cronica', icon: '🤕' },
-      { value: 'depression', label: 'Depressao', icon: '😔' },
-      { value: 'epilepsy', label: 'Epilepsia / Convulsoes', icon: '⚡' },
-      { value: 'autism', label: 'Autismo (TEA)', icon: '🧩' },
-      { value: 'fibromyalgia', label: 'Fibromialgia', icon: '💆' },
-      { value: 'migraine', label: 'Enxaqueca / Cefaleia', icon: '🤧' },
-      { value: 'parkinson', label: 'Parkinson', icon: '🧠' },
-      { value: 'ptsd', label: 'Estresse Pos-Traumatico (TEPT)', icon: '💭' },
-      { value: 'cancer', label: 'Oncologia / Efeitos de Quimioterapia', icon: '🎗️' },
-      { value: 'adhd', label: 'TDAH / Deficit de Atencao', icon: '🎯' },
-      { value: 'appetite', label: 'Falta de Apetite / Nausea', icon: '🍽️' },
-      { value: 'inflammation', label: 'Inflamacao Cronica', icon: '🔥' },
-      { value: 'other', label: 'Outra condicao', icon: '➕' },
+      { value: 'insomnia', label: 'Insônia ou dificuldade para dormir' },
+      { value: 'anxiety', label: 'Ansiedade' },
+      { value: 'chronic_pain', label: 'Dor crônica' },
+      { value: 'depression', label: 'Depressão' },
+      { value: 'epilepsy', label: 'Epilepsia ou convulsões' },
+      { value: 'autism', label: 'Autismo (TEA)' },
+      { value: 'fibromyalgia', label: 'Fibromialgia' },
+      { value: 'migraine', label: 'Enxaqueca ou cefaleia' },
+      { value: 'parkinson', label: 'Parkinson' },
+      { value: 'ptsd', label: 'Estresse pós-traumático (TEPT)' },
+      { value: 'cancer', label: 'Oncologia — efeitos de quimioterapia' },
+      { value: 'adhd', label: 'TDAH' },
+      { value: 'appetite', label: 'Falta de apetite ou náusea' },
+      { value: 'inflammation', label: 'Inflamação crônica' },
+      { value: 'other', label: 'Outra condição' },
     ],
   },
 
@@ -81,27 +91,27 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
     id: 'severity',
     step: 3,
-    title: 'Como voce classificaria a intensidade dos seus sintomas?',
-    subtitle: 'Considere a media nos ultimos 30 dias',
+    title: 'Com que intensidade esses sintomas afetam você?',
+    subtitle: 'Pense na média dos últimos 30 dias.',
     type: 'scale',
     required: true,
     min: 1,
     max: 10,
-    scaleLabels: { min: 'Leve — incomoda pouco', max: 'Severo — impacta muito minha vida' },
+    scaleLabels: { min: 'Incomoda pouco', max: 'Impacta muito minha vida' },
   },
   {
     id: 'symptom_duration',
     step: 3,
-    title: 'Ha quanto tempo voce convive com esses sintomas?',
+    title: 'Há quanto tempo você convive com isso?',
     type: 'single',
     required: true,
     options: [
-      { value: 'less_1month', label: 'Menos de 1 mes', icon: '📅' },
-      { value: '1_6months', label: '1 a 6 meses', icon: '📅' },
-      { value: '6_12months', label: '6 meses a 1 ano', icon: '📅' },
-      { value: '1_3years', label: '1 a 3 anos', icon: '📅' },
-      { value: '3_5years', label: '3 a 5 anos', icon: '📅' },
-      { value: 'more_5years', label: 'Mais de 5 anos', icon: '📅' },
+      { value: 'less_1month', label: 'Menos de 1 mês' },
+      { value: '1_6months', label: '1 a 6 meses' },
+      { value: '6_12months', label: '6 meses a 1 ano' },
+      { value: '1_3years', label: '1 a 3 anos' },
+      { value: '3_5years', label: '3 a 5 anos' },
+      { value: 'more_5years', label: 'Mais de 5 anos' },
     ],
   },
 
@@ -109,20 +119,20 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
     id: 'daily_impact',
     step: 4,
-    title: 'Como os sintomas afetam seu dia a dia?',
-    subtitle: 'Selecione todos que se aplicam',
+    title: 'Em quais áreas da sua vida você sente esse impacto?',
+    subtitle: 'Selecione tudo que se aplicar.',
     type: 'multiple',
     required: true,
     options: [
-      { value: 'sleep', label: 'Nao consigo dormir bem', icon: '🛏️' },
-      { value: 'work', label: 'Atrapalha meu trabalho / estudos', icon: '💼' },
-      { value: 'social', label: 'Afeta meus relacionamentos', icon: '👥' },
-      { value: 'exercise', label: 'Nao consigo me exercitar', icon: '🏃' },
-      { value: 'mood', label: 'Meu humor fica muito afetado', icon: '😞' },
-      { value: 'appetite', label: 'Perdi o apetite ou como demais', icon: '🍽️' },
-      { value: 'focus', label: 'Dificuldade de concentracao', icon: '🧠' },
-      { value: 'daily_tasks', label: 'Tarefas simples ficam dificeis', icon: '🏠' },
-      { value: 'none', label: 'Nao afeta significativamente', icon: '✅' },
+      { value: 'sleep', label: 'Sono — não consigo descansar bem' },
+      { value: 'work', label: 'Trabalho ou estudos' },
+      { value: 'social', label: 'Relacionamentos e vida social' },
+      { value: 'exercise', label: 'Atividade física' },
+      { value: 'mood', label: 'Humor e bem-estar emocional' },
+      { value: 'appetite', label: 'Alimentação e apetite' },
+      { value: 'focus', label: 'Concentração e memória' },
+      { value: 'daily_tasks', label: 'Tarefas do dia a dia' },
+      { value: 'none', label: 'Não afeta significativamente' },
     ],
   },
 
@@ -130,138 +140,138 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
     id: 'previous_treatments',
     step: 5,
-    title: 'Quais tratamentos voce ja tentou?',
-    subtitle: 'Selecione todos que ja usou para esta condicao',
+    title: 'Quais tratamentos você já experimentou?',
+    subtitle: 'Selecione todos que já usou para esta condição.',
     type: 'multiple',
     required: true,
     options: [
-      { value: 'conventional_meds', label: 'Medicamentos convencionais (receita medica)', icon: '💊' },
-      { value: 'otc', label: 'Medicamentos sem receita (analgesicos, etc.)', icon: '🏪' },
-      { value: 'therapy', label: 'Psicoterapia / Terapia', icon: '🛋️' },
-      { value: 'acupuncture', label: 'Acupuntura', icon: '📍' },
-      { value: 'physiotherapy', label: 'Fisioterapia', icon: '🏋️' },
-      { value: 'meditation', label: 'Meditacao / Mindfulness', icon: '🧘' },
-      { value: 'cannabis_informal', label: 'Cannabis (sem acompanhamento medico)', icon: '🌿' },
-      { value: 'cannabis_medical', label: 'Cannabis medicinal (com acompanhamento)', icon: '🏥' },
-      { value: 'none', label: 'Nenhum tratamento ainda', icon: '🚫' },
+      { value: 'conventional_meds', label: 'Medicamentos com receita médica' },
+      { value: 'otc', label: 'Medicamentos sem receita (analgésicos etc.)' },
+      { value: 'therapy', label: 'Psicoterapia ou terapia' },
+      { value: 'acupuncture', label: 'Acupuntura' },
+      { value: 'physiotherapy', label: 'Fisioterapia' },
+      { value: 'meditation', label: 'Meditação ou mindfulness' },
+      { value: 'cannabis_informal', label: 'Cannabis sem acompanhamento médico' },
+      { value: 'cannabis_medical', label: 'Cannabis medicinal com prescrição' },
+      { value: 'none', label: 'Nenhum tratamento ainda' },
     ],
-    infoBox: 'Nao se preocupe — todas as respostas sao confidenciais e protegidas pela LGPD.',
+    infoBox: 'Todas as suas respostas são confidenciais e protegidas pela LGPD.',
   },
   {
     id: 'conventional_effectiveness',
     step: 5,
-    title: 'Os tratamentos convencionais funcionaram para voce?',
+    title: 'Como foi a sua experiência com os medicamentos convencionais?',
     type: 'single',
     required: true,
     conditional: { questionId: 'previous_treatments', values: ['conventional_meds'] },
     options: [
-      { value: 'effective', label: 'Sim, funcionaram bem', icon: '✅' },
-      { value: 'partial', label: 'Funcionaram parcialmente', icon: '⚠️' },
-      { value: 'side_effects', label: 'Funcionaram mas com muitos efeitos colaterais', icon: '😵' },
-      { value: 'ineffective', label: 'Nao funcionaram', icon: '❌' },
-      { value: 'stopped', label: 'Parei por conta propria', icon: '🛑' },
+      { value: 'effective', label: 'Funcionaram bem' },
+      { value: 'partial', label: 'Funcionaram parcialmente' },
+      { value: 'side_effects', label: 'Funcionaram, mas com efeitos colaterais significativos' },
+      { value: 'ineffective', label: 'Não funcionaram' },
+      { value: 'stopped', label: 'Parei o uso por conta própria' },
     ],
   },
 
-  // ── STEP 6: Experiencia com cannabis ─────────────────
+  // ── STEP 6: Experiência com cannabis ─────────────────
   {
     id: 'cannabis_experience',
     step: 6,
-    title: 'Qual sua experiencia com cannabis medicinal?',
+    title: 'Qual é a sua relação atual com a cannabis medicinal?',
     type: 'single',
     required: true,
     options: [
-      { value: 'never', label: 'Nunca usei', icon: '🆕', description: 'Estou pesquisando pela primeira vez' },
-      { value: 'researching', label: 'Estou pesquisando mas nunca usei', icon: '🔍', description: 'Li artigos ou ouvi relatos' },
-      { value: 'informal', label: 'Ja usei sem acompanhamento medico', icon: '🌿', description: 'Uso proprio, sem receita' },
-      { value: 'medical', label: 'Uso ou ja usei com acompanhamento', icon: '👨‍⚕️', description: 'Prescricao medica' },
+      { value: 'never', label: 'Nunca usei', description: 'Estou pesquisando pela primeira vez' },
+      { value: 'researching', label: 'Estou pesquisando, mas nunca usei', description: 'Li artigos ou ouvi relatos' },
+      { value: 'informal', label: 'Já usei sem acompanhamento médico', description: 'Uso próprio, sem prescrição' },
+      { value: 'medical', label: 'Uso ou já usei com prescrição', description: 'Com acompanhamento médico' },
     ],
-    infoBox: 'Cannabis medicinal e legal no Brasil com prescricao medica, regulamentada pela ANVISA (RDC 327/2019 e RDC 660/2022).',
+    infoBox: 'Cannabis medicinal é legal no Brasil com prescrição médica, regulamentada pela ANVISA (RDC 327/2019 e RDC 660/2022).',
   },
   {
     id: 'cannabis_products_used',
     step: 6,
-    title: 'Quais tipos de produtos voce ja usou?',
+    title: 'Quais tipos de produto você já usou?',
     type: 'multiple',
     required: true,
     conditional: { questionId: 'cannabis_experience', values: ['informal', 'medical'] },
     options: [
-      { value: 'oil_cbd', label: 'Oleo de CBD', icon: '💧' },
-      { value: 'oil_thc', label: 'Oleo com THC', icon: '💧' },
-      { value: 'capsule', label: 'Capsulas', icon: '💊' },
-      { value: 'gummy', label: 'Gomas / Comestiveis', icon: '🍬' },
-      { value: 'topical', label: 'Topico (creme, pomada)', icon: '🧴' },
-      { value: 'flower', label: 'Flor / Vaporizacao', icon: '🌿' },
-      { value: 'other', label: 'Outro', icon: '📦' },
+      { value: 'oil_cbd', label: 'Óleo de CBD' },
+      { value: 'oil_thc', label: 'Óleo com THC' },
+      { value: 'capsule', label: 'Cápsulas' },
+      { value: 'gummy', label: 'Gomas ou comestíveis' },
+      { value: 'topical', label: 'Tópico — creme ou pomada' },
+      { value: 'flower', label: 'Flor ou vaporização' },
+      { value: 'other', label: 'Outro' },
     ],
   },
   {
     id: 'cannabis_effectiveness',
     step: 6,
-    title: 'A cannabis medicinal ajudou com seus sintomas?',
+    title: 'Como a cannabis medicinal afetou seus sintomas?',
     type: 'single',
     required: true,
     conditional: { questionId: 'cannabis_experience', values: ['informal', 'medical'] },
     options: [
-      { value: 'very_effective', label: 'Sim, muito — grande melhora', icon: '🌟' },
-      { value: 'somewhat', label: 'Sim, parcialmente — alguma melhora', icon: '👍' },
-      { value: 'unsure', label: 'Nao tenho certeza', icon: '🤔' },
-      { value: 'not_effective', label: 'Nao senti diferenca', icon: '😐' },
+      { value: 'very_effective', label: 'Melhora significativa' },
+      { value: 'somewhat', label: 'Alguma melhora' },
+      { value: 'unsure', label: 'Não tenho certeza' },
+      { value: 'not_effective', label: 'Não senti diferença' },
     ],
   },
 
-  // ── STEP 7: Saude geral ──────────────────────────────
+  // ── STEP 7: Saúde geral ──────────────────────────────
   {
     id: 'current_medications',
     step: 7,
-    title: 'Voce toma algum medicamento atualmente?',
+    title: 'Você toma algum medicamento atualmente?',
     type: 'single',
     required: true,
     options: [
-      { value: 'yes', label: 'Sim', icon: '💊' },
-      { value: 'no', label: 'Nao', icon: '🚫' },
+      { value: 'yes', label: 'Sim' },
+      { value: 'no', label: 'Não' },
     ],
-    infoBox: 'Isso e importante para o medico avaliar possiveis interacoes medicamentosas.',
+    infoBox: 'Essa informação é essencial para o médico avaliar possíveis interações.',
   },
   {
     id: 'medications_list',
     step: 7,
-    title: 'Quais medicamentos voce toma?',
-    subtitle: 'Liste os nomes dos medicamentos (nao precisa lembrar a dosagem exata)',
+    title: 'Quais medicamentos você toma?',
+    subtitle: 'Liste os nomes — não precisa lembrar a dosagem exata.',
     type: 'text',
     required: false,
     conditional: { questionId: 'current_medications', values: ['yes'] },
-    placeholder: 'Ex: Rivotril, Escitalopram, Tramadol, Dipirona...',
+    placeholder: 'Ex: Rivotril, Escitalopram, Tramadol, Dipirona…',
   },
   {
     id: 'allergies',
     step: 7,
-    title: 'Voce tem alguma alergia conhecida?',
+    title: 'Você tem alguma alergia conhecida?',
     type: 'single',
     required: true,
     options: [
-      { value: 'none', label: 'Nenhuma alergia conhecida', icon: '✅' },
-      { value: 'medications', label: 'Sim, a medicamentos', icon: '💊' },
-      { value: 'food', label: 'Sim, alimentar', icon: '🍽️' },
-      { value: 'multiple', label: 'Sim, multiplas', icon: '⚠️' },
+      { value: 'none', label: 'Nenhuma alergia conhecida' },
+      { value: 'medications', label: 'Sim, a medicamentos' },
+      { value: 'food', label: 'Sim, alimentar' },
+      { value: 'multiple', label: 'Sim, múltiplas' },
     ],
   },
   {
     id: 'health_conditions',
     step: 7,
-    title: 'Possui alguma dessas condicoes de saude?',
-    subtitle: 'Selecione todas que se aplicam',
+    title: 'Você tem alguma dessas condições de saúde?',
+    subtitle: 'Selecione todas que se aplicam.',
     type: 'multiple',
     required: false,
     options: [
-      { value: 'hypertension', label: 'Hipertensao', icon: '❤️' },
-      { value: 'diabetes', label: 'Diabetes', icon: '🩸' },
-      { value: 'heart_disease', label: 'Doenca cardiaca', icon: '🫀' },
-      { value: 'liver_disease', label: 'Doenca hepatica', icon: '🫁' },
-      { value: 'kidney_disease', label: 'Doenca renal', icon: '🫘' },
-      { value: 'pregnancy', label: 'Gravidez / Amamentacao', icon: '🤰' },
-      { value: 'mental_health', label: 'Transtorno psiquiatrico diagnosticado', icon: '🧠' },
-      { value: 'none', label: 'Nenhuma', icon: '✅' },
+      { value: 'hypertension', label: 'Hipertensão' },
+      { value: 'diabetes', label: 'Diabetes' },
+      { value: 'heart_disease', label: 'Doença cardíaca' },
+      { value: 'liver_disease', label: 'Doença hepática' },
+      { value: 'kidney_disease', label: 'Doença renal' },
+      { value: 'pregnancy', label: 'Gravidez ou amamentação' },
+      { value: 'mental_health', label: 'Transtorno psiquiátrico diagnosticado' },
+      { value: 'none', label: 'Nenhuma' },
     ],
   },
 
@@ -269,66 +279,60 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
     id: 'treatment_goals',
     step: 8,
-    title: 'O que voce espera alcançar com o tratamento?',
-    subtitle: 'Selecione seus principais objetivos',
+    title: 'O que você espera alcançar com o tratamento?',
+    subtitle: 'Selecione seus principais objetivos.',
     type: 'multiple',
     required: true,
     options: [
-      { value: 'reduce_pain', label: 'Reduzir dor', icon: '🎯' },
-      { value: 'better_sleep', label: 'Dormir melhor', icon: '😴' },
-      { value: 'less_anxiety', label: 'Diminuir ansiedade', icon: '🧘' },
-      { value: 'better_mood', label: 'Melhorar humor', icon: '😊' },
-      { value: 'reduce_meds', label: 'Reduzir medicamentos convencionais', icon: '💊' },
-      { value: 'quality_of_life', label: 'Melhorar qualidade de vida geral', icon: '✨' },
-      { value: 'more_focus', label: 'Mais foco e concentracao', icon: '🎯' },
-      { value: 'appetite', label: 'Recuperar apetite', icon: '🍽️' },
+      { value: 'reduce_pain', label: 'Reduzir a dor' },
+      { value: 'better_sleep', label: 'Dormir melhor' },
+      { value: 'less_anxiety', label: 'Diminuir a ansiedade' },
+      { value: 'better_mood', label: 'Melhorar o humor' },
+      { value: 'reduce_meds', label: 'Reduzir medicamentos convencionais' },
+      { value: 'quality_of_life', label: 'Qualidade de vida geral' },
+      { value: 'more_focus', label: 'Mais foco e concentração' },
+      { value: 'appetite', label: 'Recuperar o apetite' },
     ],
   },
   {
     id: 'urgency',
     step: 8,
-    title: 'Qual a urgencia do seu tratamento?',
+    title: 'Qual é a sua urgência?',
     type: 'single',
     required: true,
     options: [
-      { value: 'asap', label: 'Quero comecar o mais rapido possivel', icon: '🚀' },
-      { value: 'this_week', label: 'Nas proximas semanas', icon: '📅' },
-      { value: 'exploring', label: 'Estou apenas explorando por enquanto', icon: '🔍' },
+      { value: 'asap', label: 'Quero começar o quanto antes' },
+      { value: 'this_week', label: 'Nas próximas semanas' },
+      { value: 'exploring', label: 'Ainda estou explorando' },
     ],
   },
   {
     id: 'product_preference',
     step: 8,
-    title: 'Tem preferencia por algum tipo de produto?',
-    subtitle: 'O medico fara a recomendacao final — isso e apenas uma preferencia',
+    title: 'Tem preferência por algum tipo de produto?',
+    subtitle: 'O médico fará a recomendação final — isso é apenas uma preferência sua.',
     type: 'single',
     required: false,
     options: [
-      { value: 'oil', label: 'Oleo (sublingual)', icon: '💧', description: 'Mais comum e versatil' },
-      { value: 'capsule', label: 'Capsulas', icon: '💊', description: 'Dosagem exata e pratica' },
-      { value: 'gummy', label: 'Gomas', icon: '🍬', description: 'Facil de tomar' },
-      { value: 'topical', label: 'Topico (dor localizada)', icon: '🧴', description: 'Aplicacao direta na pele' },
-      { value: 'no_preference', label: 'Sem preferencia — quero a recomendacao do medico', icon: '👨‍⚕️' },
+      { value: 'oil', label: 'Óleo sublingual', description: 'O mais versátil e comum' },
+      { value: 'capsule', label: 'Cápsulas', description: 'Dosagem precisa e prática' },
+      { value: 'gummy', label: 'Gomas', description: 'Fácil de incorporar à rotina' },
+      { value: 'topical', label: 'Tópico', description: 'Para dor localizada' },
+      { value: 'no_preference', label: 'Sem preferência — quero a indicação do médico' },
     ],
   },
 ]
 
-// Step labels
-const STEP_LABELS = [
-  { num: 1, label: 'Paciente', icon: '👤' },
-  { num: 2, label: 'Condicoes', icon: '🩺' },
-  { num: 3, label: 'Sintomas', icon: '📊' },
-  { num: 4, label: 'Impacto', icon: '💭' },
-  { num: 5, label: 'Historico', icon: '📋' },
-  { num: 6, label: 'Cannabis', icon: '🌿' },
-  { num: 7, label: 'Saude', icon: '❤️' },
-  { num: 8, label: 'Objetivos', icon: '🎯' },
-]
-
 const TOTAL_STEPS = 8
 
+// Step labels — sem emojis, usados só na barra de progresso interna
+const STEP_LABELS = [
+  'Paciente', 'Condições', 'Sintomas', 'Impacto',
+  'Histórico', 'Cannabis', 'Saúde', 'Objetivos',
+]
+
 // ============================================================
-// RECOMMENDATION ENGINE
+// RECOMMENDATION ENGINE (lógica preservada integralmente)
 // ============================================================
 
 interface QuizResult {
@@ -347,7 +351,6 @@ function generateRecommendation(answers: Record<string, string | string[] | numb
   const experience = answers.cannabis_experience as string
   const healthConditions = (answers.health_conditions as string[]) || []
 
-  // Determine specialties
   const specialties: string[] = []
   if (conditions.includes('epilepsy') || conditions.includes('parkinson') || conditions.includes('migraine')) {
     specialties.push('Neurologia')
@@ -356,7 +359,7 @@ function generateRecommendation(answers: Record<string, string | string[] | numb
     specialties.push('Psiquiatria')
   }
   if (conditions.includes('chronic_pain') || conditions.includes('fibromyalgia')) {
-    specialties.push('Clinica da Dor')
+    specialties.push('Clínica da Dor')
   }
   if (conditions.includes('cancer')) {
     specialties.push('Oncologia')
@@ -364,9 +367,8 @@ function generateRecommendation(answers: Record<string, string | string[] | numb
   if (conditions.includes('autism')) {
     specialties.push('Neurologia', 'Psiquiatria')
   }
-  if (specialties.length === 0) specialties.push('Clinica Geral', 'Cannabis Medicinal')
+  if (specialties.length === 0) specialties.push('Clínica Geral', 'Cannabis Medicinal')
 
-  // Risk level
   let riskLevel: 'low' | 'medium' | 'high' = 'low'
   if (severity >= 8 || healthConditions.includes('pregnancy') || healthConditions.includes('heart_disease')) {
     riskLevel = 'high'
@@ -374,7 +376,6 @@ function generateRecommendation(answers: Record<string, string | string[] | numb
     riskLevel = 'medium'
   }
 
-  // Priority condition
   const conditionPriority: Record<string, number> = {
     epilepsy: 10, cancer: 10, parkinson: 9, autism: 8,
     chronic_pain: 7, fibromyalgia: 7, depression: 6, anxiety: 5,
@@ -384,56 +385,304 @@ function generateRecommendation(answers: Record<string, string | string[] | numb
     (a, b) => (conditionPriority[b] || 0) - (conditionPriority[a] || 0)
   )[0] || 'general'
 
-  // Product suggestions
   const products: string[] = []
   if (conditions.includes('insomnia')) products.push('CBD Oil + Melatonina', 'CBD Sleep Gummies')
   if (conditions.includes('chronic_pain') || conditions.includes('fibromyalgia')) products.push('CBD Full Spectrum Oil', 'CBD Topical Roll-On')
-  if (conditions.includes('anxiety') || conditions.includes('depression')) products.push('CBD Broad Spectrum Oil', 'CBD Capsulas')
-  if (conditions.includes('epilepsy')) products.push('CBD Isolate Oil (alta concentracao)')
+  if (conditions.includes('anxiety') || conditions.includes('depression')) products.push('CBD Broad Spectrum Oil', 'CBD Cápsulas')
+  if (conditions.includes('epilepsy')) products.push('CBD Isolate Oil (alta concentração)')
   if (products.length === 0) products.push('CBD Full Spectrum Oil')
 
-  // Personalized message
   const conditionLabels: Record<string, string> = {
-    insomnia: 'insonia', anxiety: 'ansiedade', chronic_pain: 'dor cronica',
-    depression: 'depressao', epilepsy: 'epilepsia', autism: 'autismo',
+    insomnia: 'insônia', anxiety: 'ansiedade', chronic_pain: 'dor crônica',
+    depression: 'depressão', epilepsy: 'epilepsia', autism: 'autismo',
     fibromyalgia: 'fibromialgia', migraine: 'enxaqueca', parkinson: 'parkinson',
-    ptsd: 'estresse pos-traumatico', cancer: 'suporte oncologico', adhd: 'TDAH',
-    appetite: 'apetite', inflammation: 'inflamacao',
+    ptsd: 'estresse pós-traumático', cancer: 'suporte oncológico', adhd: 'TDAH',
+    appetite: 'apetite', inflammation: 'inflamação',
   }
 
   const mainConditions = conditions.slice(0, 2).map((c) => conditionLabels[c] || c).join(' e ')
-  let message = `Com base nas suas respostas, identificamos que voce busca tratamento para ${mainConditions}.`
+  let message = `Com base nas suas respostas, identificamos que você busca tratamento para ${mainConditions}.`
 
   if (experience === 'never' || experience === 'researching') {
-    message += ' Como e sua primeira experiencia com cannabis medicinal, nosso medico vai explicar tudo com calma e começar com doses baixas.'
+    message += ' Como é sua primeira experiência com cannabis medicinal, nosso médico vai explicar tudo com calma e começar com doses baixas.'
   } else if (experience === 'medical') {
-    message += ' Como voce ja tem experiencia com tratamento medico, podemos otimizar seu regime atual.'
+    message += ' Como você já tem experiência com tratamento médico, podemos otimizar seu regime atual.'
   }
 
   if (riskLevel === 'high') {
-    message += ' Identificamos alguns pontos que merecem atencao especial — o medico vai avaliar com cuidado.'
+    message += ' Identificamos alguns pontos que merecem atenção especial — o médico vai avaliar com cuidado.'
   }
 
-  // Consultation focus
-  const focus: string[] = ['Avaliacao clinica completa']
-  if (experience === 'never') focus.push('Educacao sobre cannabis medicinal')
-  if (answers.current_medications === 'yes') focus.push('Revisao de interacoes medicamentosas')
+  const focus: string[] = ['Avaliação clínica completa']
+  if (experience === 'never') focus.push('Educação sobre cannabis medicinal')
+  if (answers.current_medications === 'yes') focus.push('Revisão de interações medicamentosas')
   if (severity >= 7) focus.push('Plano de manejo de sintomas intensos')
-  if (goals.includes('reduce_meds')) focus.push('Estrategia de reducao de medicamentos')
-  focus.push('Prescricao personalizada')
+  if (goals.includes('reduce_meds')) focus.push('Estratégia de redução de medicamentos')
+  focus.push('Prescrição personalizada')
 
   return {
-    recommendedSpecialties: [...new Set(specialties)],
+    recommendedSpecialties: Array.from(new Set(specialties)),
     riskLevel,
     personalizedMessage: message,
-    suggestedProducts: [...new Set(products)],
+    suggestedProducts: Array.from(new Set(products)),
     estimatedConsultationFocus: focus,
     priorityCondition,
   }
 }
 
 // ============================================================
-// QUIZ COMPONENT
+// SUB-COMPONENTES INTERNOS
+// ============================================================
+
+// Opção de seleção única — card interativo
+function SingleOption({
+  option,
+  selected,
+  onClick,
+}: {
+  option: QuizOption
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        'w-full flex items-center gap-4 px-5 py-4 rounded-lg border text-left',
+        'transition-all duration-150',
+        selected
+          ? 'bg-brand-50 border-brand-600 shadow-focus-brand'
+          : 'bg-white border-surface-200 hover:border-surface-300 hover:shadow-sm',
+      )}
+    >
+      {/* Conteúdo textual */}
+      <div className="flex-1 min-w-0">
+        <p
+          className={cn(
+            'text-sm font-medium leading-snug',
+            selected ? 'text-brand-700' : 'text-surface-800',
+          )}
+        >
+          {option.label}
+        </p>
+        {option.description && (
+          <p className="text-xs text-surface-500 mt-0.5 leading-relaxed">
+            {option.description}
+          </p>
+        )}
+      </div>
+
+      {/* Indicador circular */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors duration-150',
+          selected ? 'border-brand-600 bg-brand-600' : 'border-surface-300',
+        )}
+      >
+        {selected && <Check size={11} strokeWidth={3} className="text-white" />}
+      </span>
+    </button>
+  )
+}
+
+// Opção de seleção múltipla — card compacto com checkbox
+function MultipleOption({
+  option,
+  selected,
+  onClick,
+}: {
+  option: QuizOption
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        'flex items-center gap-3 px-4 py-3 rounded-lg border text-left w-full',
+        'transition-all duration-150',
+        selected
+          ? 'bg-brand-50 border-brand-600'
+          : 'bg-white border-surface-200 hover:border-surface-300 hover:bg-surface-50',
+      )}
+    >
+      {/* Checkbox */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors duration-150',
+          selected ? 'border-brand-600 bg-brand-600' : 'border-surface-300',
+        )}
+      >
+        {selected && <Check size={10} strokeWidth={3} className="text-white" />}
+      </span>
+      <span
+        className={cn(
+          'text-sm font-medium flex-1 leading-snug',
+          selected ? 'text-brand-700' : 'text-surface-700',
+        )}
+      >
+        {option.label}
+      </span>
+    </button>
+  )
+}
+
+// Escala de 1–10 com track colorido
+function ScaleInput({
+  questionId,
+  value,
+  scaleLabels,
+  onChange,
+}: {
+  questionId: string
+  value: number | undefined
+  scaleLabels?: { min: string; max: string }
+  onChange: (v: number) => void
+}) {
+  return (
+    <div className="space-y-5">
+      {/* Botões numéricos */}
+      <div className="flex gap-1.5" role="group" aria-label="Escala de 1 a 10">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
+          const isSelected = value === val
+          const isFilled = value !== undefined && val <= value
+          return (
+            <button
+              key={val}
+              type="button"
+              onClick={() => onChange(val)}
+              aria-pressed={isSelected}
+              aria-label={`${val} de 10`}
+              className={cn(
+                'flex-1 h-11 rounded-md text-sm font-semibold transition-all duration-150',
+                isSelected
+                  ? 'bg-brand-600 text-white shadow-focus-brand scale-105'
+                  : isFilled
+                  ? 'bg-brand-100 text-brand-700 hover:bg-brand-200'
+                  : 'bg-surface-100 text-surface-500 hover:bg-surface-200',
+              )}
+            >
+              {val}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Track visual */}
+      <div className="h-1 bg-surface-200 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-brand-600 rounded-full transition-all duration-200 ease-out"
+          style={{ width: value ? `${((value - 1) / 9) * 100}%` : '0%' }}
+        />
+      </div>
+
+      {/* Labels */}
+      {scaleLabels && (
+        <div className="flex justify-between">
+          <span className="text-xs text-surface-500">{scaleLabels.min}</span>
+          <span className="text-xs text-surface-500">{scaleLabels.max}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Card de pergunta individual
+function QuestionCard({ question, answers, onSingle, onMultiple, onScale, onText }: {
+  question: QuizQuestion
+  answers: Record<string, string | string[] | number>
+  onSingle: (id: string, v: string) => void
+  onMultiple: (id: string, v: string) => void
+  onScale: (id: string, v: number) => void
+  onText: (id: string, v: string) => void
+}) {
+  return (
+    <div className="animate-[slide-up_200ms_cubic-bezier(0.16,1,0.3,1)]">
+      {/* Texto da pergunta */}
+      <div className="mb-8">
+        <h2 className="font-heading text-h2 text-surface-900 tracking-tight text-balance">
+          {question.title}
+        </h2>
+        {question.subtitle && (
+          <p className="mt-2 text-body-lg text-surface-600 leading-relaxed">
+            {question.subtitle}
+          </p>
+        )}
+      </div>
+
+      {/* SINGLE SELECT */}
+      {question.type === 'single' && (
+        <div className="space-y-2.5">
+          {question.options?.map((opt) => (
+            <SingleOption
+              key={opt.value}
+              option={opt}
+              selected={answers[question.id] === opt.value}
+              onClick={() => onSingle(question.id, opt.value)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* MULTIPLE SELECT */}
+      {question.type === 'multiple' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {question.options?.map((opt) => (
+            <MultipleOption
+              key={opt.value}
+              option={opt}
+              selected={((answers[question.id] as string[]) || []).includes(opt.value)}
+              onClick={() => onMultiple(question.id, opt.value)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* SCALE */}
+      {question.type === 'scale' && (
+        <ScaleInput
+          questionId={question.id}
+          value={answers[question.id] as number | undefined}
+          scaleLabels={question.scaleLabels}
+          onChange={(v) => onScale(question.id, v)}
+        />
+      )}
+
+      {/* TEXT */}
+      {question.type === 'text' && (
+        <textarea
+          value={(answers[question.id] as string) || ''}
+          onChange={(e) => onText(question.id, e.target.value)}
+          placeholder={question.placeholder}
+          rows={4}
+          className={cn(
+            'w-full px-4 py-3 rounded-lg border border-surface-300 bg-white',
+            'text-sm text-surface-800 placeholder:text-surface-400',
+            'transition-colors duration-150 resize-none',
+            'focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15',
+          )}
+        />
+      )}
+
+      {/* Info Box */}
+      {question.infoBox && (
+        <div className="mt-5 flex items-start gap-3 px-4 py-3 rounded-lg bg-info-50 border border-info-100">
+          <Info size={14} strokeWidth={2} className="text-info-600 mt-0.5 shrink-0" />
+          <p className="text-xs text-info-700 leading-relaxed">{question.infoBox}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// COMPONENTE PRINCIPAL
 // ============================================================
 
 export default function PatientQuizPage() {
@@ -442,9 +691,9 @@ export default function PatientQuizPage() {
   const [answers, setAnswers] = useState<Record<string, string | string[] | number>>({})
   const [showResult, setShowResult] = useState(false)
   const [result, setResult] = useState<QuizResult | null>(null)
-  const [animating, setAnimating] = useState(false)
+  const [transitioning, setTransitioning] = useState(false)
 
-  // Get questions for current step (filtering conditionals)
+  // Filtra perguntas do step atual respeitando condicionais
   const currentQuestions = QUIZ_QUESTIONS.filter((q) => {
     if (q.step !== currentStep) return false
     if (q.conditional) {
@@ -457,7 +706,7 @@ export default function PatientQuizPage() {
     return true
   })
 
-  // Check if current step is complete
+  // Verifica se o step está completo
   const isStepComplete = currentQuestions
     .filter((q) => q.required)
     .every((q) => {
@@ -468,21 +717,23 @@ export default function PatientQuizPage() {
       return true
     })
 
-  // Progress percentage
+  // Progresso em %
   const progress = showResult ? 100 : Math.round(((currentStep - 1) / TOTAL_STEPS) * 100)
 
   const handleNext = () => {
+    if (!isStepComplete) return
     if (currentStep < TOTAL_STEPS) {
-      setAnimating(true)
+      setTransitioning(true)
       setTimeout(() => {
         setCurrentStep((s) => s + 1)
-        setAnimating(false)
+        setTransitioning(false)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       }, 200)
     } else {
-      // Generate result
       const recommendation = generateRecommendation(answers)
       setResult(recommendation)
       setShowResult(true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -492,10 +743,11 @@ export default function PatientQuizPage() {
       return
     }
     if (currentStep > 1) {
-      setAnimating(true)
+      setTransitioning(true)
       setTimeout(() => {
         setCurrentStep((s) => s - 1)
-        setAnimating(false)
+        setTransitioning(false)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       }, 200)
     }
   }
@@ -507,7 +759,6 @@ export default function PatientQuizPage() {
   const handleMultipleAnswer = (questionId: string, value: string) => {
     setAnswers((prev) => {
       const current = (prev[questionId] as string[]) || []
-      // "none" toggles off everything else
       if (value === 'none') return { ...prev, [questionId]: ['none'] }
       const filtered = current.filter((v) => v !== 'none')
       if (filtered.includes(value)) {
@@ -526,9 +777,7 @@ export default function PatientQuizPage() {
   }
 
   const handleBookConsultation = () => {
-    // Save quiz answers to localStorage for the booking flow
     localStorage.setItem('wisedrops_quiz', JSON.stringify({ answers, result }))
-    // Mark quiz as complete on current user
     try {
       const u = localStorage.getItem('wisedrops_current_user')
       if (u) {
@@ -540,340 +789,257 @@ export default function PatientQuizPage() {
     router.push('/consultations/book')
   }
 
-  // ── RENDER ─────────────────────────────────────────────
+  // ── RENDER ───────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-surface-50">
-      {/* Header */}
-      <header className="fixed top-0 w-full bg-white/90 backdrop-blur-lg border-b border-surface-200 z-50">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg gradient-brand flex items-center justify-center">
-              <span className="text-white font-bold text-xs">W</span>
+
+      {/* ── HEADER FIXO ────────────────────────────────────── */}
+      <header className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-b border-surface-200">
+        <div className="max-w-2xl mx-auto px-5 h-14 flex items-center justify-between">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-md"
+          >
+            <div className="w-7 h-7 rounded-md gradient-brand flex items-center justify-center shrink-0">
+              <span className="text-white font-bold text-xs font-heading">W</span>
             </div>
-            <span className="font-heading font-bold text-surface-900">
+            <span className="font-heading font-semibold text-surface-900 text-sm">
               Wise<span className="text-brand-600">Drops</span>
             </span>
           </Link>
+
+          {/* Contador de pergunta */}
           {!showResult && (
-            <span className="text-xs text-surface-400">
-              Passo {currentStep} de {TOTAL_STEPS}
+            <span className="text-overline text-surface-500 uppercase tracking-wider text-[11px]">
+              Etapa {currentStep} de {TOTAL_STEPS}
             </span>
           )}
         </div>
-        {/* Progress bar */}
-        <div className="h-1 bg-surface-100">
+
+        {/* Progress bar premium */}
+        <div className="h-0.5 bg-surface-200">
           <div
-            className="h-full gradient-brand transition-all duration-500 ease-out"
+            className="h-full bg-brand-600 transition-all duration-300 ease-out"
             style={{ width: `${progress}%` }}
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Progresso do diagnóstico: ${progress}%`}
           />
         </div>
       </header>
 
-      <main className="pt-20 pb-32 px-4">
+      {/* ── CONTEÚDO PRINCIPAL ─────────────────────────────── */}
+      <main className="pt-20 pb-32 px-5">
         <div className="max-w-2xl mx-auto">
-          {/* Step indicators */}
+
+          {/* Step dots — minimalistas, só indicadores de posição */}
           {!showResult && (
-            <div className="flex items-center justify-center gap-1 mb-8 overflow-x-auto pb-2">
-              {STEP_LABELS.map((step) => (
-                <div
-                  key={step.num}
-                  className={`flex flex-col items-center min-w-[60px] transition ${
-                    step.num === currentStep
-                      ? 'opacity-100'
-                      : step.num < currentStep
-                      ? 'opacity-50'
-                      : 'opacity-30'
-                  }`}
-                >
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm mb-1 ${
-                      step.num < currentStep
-                        ? 'bg-brand-500 text-white'
-                        : step.num === currentStep
-                        ? 'bg-brand-100 text-brand-700 ring-2 ring-brand-500'
-                        : 'bg-surface-200 text-surface-400'
-                    }`}
-                  >
-                    {step.num < currentStep ? '✓' : step.icon}
-                  </div>
-                  <span className="text-[10px] text-surface-500">{step.label}</span>
-                </div>
-              ))}
+            <div className="flex items-center justify-center gap-1.5 mt-8 mb-10" aria-hidden="true">
+              {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
+                const step = i + 1
+                const isActive = step === currentStep
+                const isDone = step < currentStep
+                return (
+                  <span
+                    key={step}
+                    title={STEP_LABELS[i]}
+                    className={cn(
+                      'rounded-full transition-all duration-200',
+                      isActive ? 'w-5 h-1.5 bg-brand-600' : isDone ? 'w-1.5 h-1.5 bg-brand-300' : 'w-1.5 h-1.5 bg-surface-200',
+                    )}
+                  />
+                )
+              })}
             </div>
           )}
 
-          {/* Questions */}
+          {/* ── PERGUNTAS ──────────────────────────────────── */}
           {!showResult && (
-            <div className={`space-y-8 transition-opacity duration-200 ${animating ? 'opacity-0' : 'opacity-100'}`}>
+            <div
+              className={cn(
+                'space-y-12 transition-opacity duration-200',
+                transitioning ? 'opacity-0' : 'opacity-100',
+              )}
+            >
               {currentQuestions.map((question) => (
-                <div key={question.id} className="bg-white rounded-2xl p-6 shadow-sm border border-surface-200">
-                  <h2 className="text-xl font-heading font-bold text-surface-900 mb-1">
-                    {question.title}
-                  </h2>
-                  {question.subtitle && (
-                    <p className="text-sm text-surface-500 mb-4">{question.subtitle}</p>
-                  )}
-
-                  {/* SINGLE SELECT */}
-                  {question.type === 'single' && (
-                    <div className="space-y-2">
-                      {question.options?.map((opt) => {
-                        const selected = answers[question.id] === opt.value
-                        return (
-                          <button
-                            key={opt.value}
-                            onClick={() => handleSingleAnswer(question.id, opt.value)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition ${
-                              selected
-                                ? 'bg-brand-50 border-brand-400 ring-1 ring-brand-400'
-                                : 'bg-white border-surface-200 hover:border-surface-300 hover:bg-surface-50'
-                            }`}
-                          >
-                            {opt.icon && <span className="text-xl flex-shrink-0">{opt.icon}</span>}
-                            <div className="flex-1 min-w-0">
-                              <p className={`font-medium text-sm ${selected ? 'text-brand-700' : 'text-surface-900'}`}>
-                                {opt.label}
-                              </p>
-                              {opt.description && (
-                                <p className="text-xs text-surface-400 mt-0.5">{opt.description}</p>
-                              )}
-                            </div>
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                              selected ? 'border-brand-500 bg-brand-500' : 'border-surface-300'
-                            }`}>
-                              {selected && <span className="text-white text-xs">✓</span>}
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {/* MULTIPLE SELECT */}
-                  {question.type === 'multiple' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {question.options?.map((opt) => {
-                        const selected = ((answers[question.id] as string[]) || []).includes(opt.value)
-                        return (
-                          <button
-                            key={opt.value}
-                            onClick={() => handleMultipleAnswer(question.id, opt.value)}
-                            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition ${
-                              selected
-                                ? 'bg-brand-50 border-brand-400 ring-1 ring-brand-400'
-                                : 'bg-white border-surface-200 hover:border-surface-300'
-                            }`}
-                          >
-                            {opt.icon && <span className="text-lg flex-shrink-0">{opt.icon}</span>}
-                            <span className={`text-sm font-medium flex-1 ${selected ? 'text-brand-700' : 'text-surface-700'}`}>
-                              {opt.label}
-                            </span>
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                              selected ? 'border-brand-500 bg-brand-500' : 'border-surface-300'
-                            }`}>
-                              {selected && <span className="text-white text-[10px]">✓</span>}
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {/* SCALE */}
-                  {question.type === 'scale' && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => {
-                          const selected = answers[question.id] === val
-                          const isLow = val <= 3
-                          const isMid = val >= 4 && val <= 6
-                          const isHigh = val >= 7
-                          return (
-                            <button
-                              key={val}
-                              onClick={() => handleScaleAnswer(question.id, val)}
-                              className={`w-9 h-9 rounded-lg text-sm font-bold transition ${
-                                selected
-                                  ? isLow
-                                    ? 'bg-brand-500 text-white ring-2 ring-brand-300'
-                                    : isMid
-                                    ? 'bg-yellow-500 text-white ring-2 ring-yellow-300'
-                                    : 'bg-red-500 text-white ring-2 ring-red-300'
-                                  : 'bg-surface-100 text-surface-600 hover:bg-surface-200'
-                              }`}
-                            >
-                              {val}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      {question.scaleLabels && (
-                        <div className="flex justify-between text-xs text-surface-400">
-                          <span>{question.scaleLabels.min}</span>
-                          <span>{question.scaleLabels.max}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* TEXT */}
-                  {question.type === 'text' && (
-                    <textarea
-                      value={(answers[question.id] as string) || ''}
-                      onChange={(e) => handleTextAnswer(question.id, e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-surface-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition resize-none h-24 text-sm"
-                      placeholder={question.placeholder}
-                    />
-                  )}
-
-                  {/* Info Box */}
-                  {question.infoBox && (
-                    <div className="mt-4 flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-                      <span className="text-blue-500 text-sm">ℹ️</span>
-                      <p className="text-xs text-blue-700">{question.infoBox}</p>
-                    </div>
-                  )}
-                </div>
+                <QuestionCard
+                  key={question.id}
+                  question={question}
+                  answers={answers}
+                  onSingle={handleSingleAnswer}
+                  onMultiple={handleMultipleAnswer}
+                  onScale={handleScaleAnswer}
+                  onText={handleTextAnswer}
+                />
               ))}
             </div>
           )}
 
-          {/* RESULT SCREEN */}
+          {/* ── TELA DE RESULTADO ──────────────────────────── */}
           {showResult && result && (
-            <div className="space-y-6 animate-fade-in">
-              {/* Header Card */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-surface-200 text-center">
-                <div className="w-16 h-16 rounded-full gradient-brand flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">✅</span>
+            <div className="pt-8 space-y-6 animate-[slide-up_300ms_cubic-bezier(0.16,1,0.3,1)]">
+
+              {/* Hero de conclusão */}
+              <div className="text-center py-10">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-success-50 mb-6">
+                  <CheckCircle2 size={32} strokeWidth={1.5} className="text-success-600" />
                 </div>
-                <h2 className="text-2xl font-heading font-bold text-surface-900 mb-2">
-                  Avaliacao Completa!
-                </h2>
-                <p className="text-surface-500 text-sm max-w-md mx-auto">
+                <h1 className="font-heading text-h1 text-surface-900 tracking-tight mb-3">
+                  Diagnóstico completo
+                </h1>
+                <p className="text-body-lg text-surface-600 max-w-md mx-auto leading-relaxed">
                   {result.personalizedMessage}
                 </p>
               </div>
 
-              {/* Risk Level */}
-              <div className={`p-4 rounded-2xl border ${
-                result.riskLevel === 'high'
-                  ? 'bg-red-50 border-red-200'
-                  : result.riskLevel === 'medium'
-                  ? 'bg-yellow-50 border-yellow-200'
-                  : 'bg-brand-50 border-brand-200'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">
-                    {result.riskLevel === 'high' ? '🔴' : result.riskLevel === 'medium' ? '🟡' : '🟢'}
-                  </span>
-                  <div>
-                    <p className={`font-semibold text-sm ${
-                      result.riskLevel === 'high' ? 'text-red-800' : result.riskLevel === 'medium' ? 'text-yellow-800' : 'text-brand-800'
-                    }`}>
-                      Nivel de atencao: {result.riskLevel === 'high' ? 'Alto' : result.riskLevel === 'medium' ? 'Moderado' : 'Baixo'}
-                    </p>
-                    <p className={`text-xs ${
-                      result.riskLevel === 'high' ? 'text-red-600' : result.riskLevel === 'medium' ? 'text-yellow-600' : 'text-brand-600'
-                    }`}>
-                      {result.riskLevel === 'high'
-                        ? 'Recomendamos consulta prioritaria com especialista'
-                        : result.riskLevel === 'medium'
-                        ? 'Avaliacao medica standard recomendada'
-                        : 'Caso de baixa complexidade — otimo prognostico'}
-                    </p>
+              {/* Nível de atenção */}
+              <div
+                className={cn(
+                  'rounded-xl border px-5 py-4',
+                  result.riskLevel === 'high'
+                    ? 'bg-error-50 border-error-100'
+                    : result.riskLevel === 'medium'
+                    ? 'bg-warning-50 border-warning-100'
+                    : 'bg-success-50 border-success-100',
+                )}
+              >
+                <p
+                  className={cn(
+                    'text-sm font-semibold mb-0.5',
+                    result.riskLevel === 'high'
+                      ? 'text-error-700'
+                      : result.riskLevel === 'medium'
+                      ? 'text-warning-700'
+                      : 'text-success-700',
+                  )}
+                >
+                  Nível de atenção:{' '}
+                  {result.riskLevel === 'high' ? 'Alto' : result.riskLevel === 'medium' ? 'Moderado' : 'Baixo'}
+                </p>
+                <p
+                  className={cn(
+                    'text-xs',
+                    result.riskLevel === 'high'
+                      ? 'text-error-600'
+                      : result.riskLevel === 'medium'
+                      ? 'text-warning-600'
+                      : 'text-success-600',
+                  )}
+                >
+                  {result.riskLevel === 'high'
+                    ? 'Recomendamos consulta prioritária com especialista'
+                    : result.riskLevel === 'medium'
+                    ? 'Avaliação médica padrão recomendada'
+                    : 'Caso de baixa complexidade — ótimo prognóstico'}
+                </p>
+              </div>
+
+              {/* Especialidades e foco — lado a lado em desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                {/* Especialidades recomendadas */}
+                <div className="bg-white border border-surface-200 rounded-xl shadow-xs p-5">
+                  <p className="text-overline text-surface-500 uppercase tracking-wider mb-3">
+                    Especialidades
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {result.recommendedSpecialties.map((spec) => (
+                      <Badge key={spec} variant="brand">
+                        {spec}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
-              </div>
 
-              {/* Recommended Specialties */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-surface-200">
-                <h3 className="font-heading font-semibold text-surface-900 mb-3">
-                  👨‍⚕️ Especialidades Recomendadas
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {result.recommendedSpecialties.map((spec) => (
-                    <span
-                      key={spec}
-                      className="px-3 py-1.5 rounded-full bg-brand-50 text-brand-700 text-sm font-medium"
-                    >
-                      {spec}
-                    </span>
-                  ))}
+                {/* Foco da consulta */}
+                <div className="bg-white border border-surface-200 rounded-xl shadow-xs p-5">
+                  <p className="text-overline text-surface-500 uppercase tracking-wider mb-3">
+                    O médico vai abordar
+                  </p>
+                  <ol className="space-y-2">
+                    {result.estimatedConsultationFocus.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <span className="w-4 h-4 rounded-sm bg-brand-100 text-brand-700 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        <span className="text-sm text-surface-700 leading-snug">{item}</span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               </div>
 
-              {/* Consultation Focus */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-surface-200">
-                <h3 className="font-heading font-semibold text-surface-900 mb-3">
-                  📋 O que o medico vai abordar na consulta
-                </h3>
-                <div className="space-y-2">
-                  {result.estimatedConsultationFocus.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-xs font-bold">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm text-surface-700">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Suggested Products */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-surface-200">
-                <h3 className="font-heading font-semibold text-surface-900 mb-3">
-                  💊 Produtos que podem ser indicados
-                </h3>
-                <p className="text-xs text-surface-400 mb-3">
-                  A prescricao final sera feita pelo medico durante a consulta
+              {/* Produtos sugeridos */}
+              <div className="bg-white border border-surface-200 rounded-xl shadow-xs p-5">
+                <p className="text-overline text-surface-500 uppercase tracking-wider mb-1">
+                  Produtos que podem ser indicados
+                </p>
+                <p className="text-xs text-surface-500 mb-4">
+                  A prescrição final será feita pelo médico durante a consulta.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {result.suggestedProducts.map((product) => (
                     <div
                       key={product}
-                      className="flex items-center gap-2 p-3 rounded-xl bg-surface-50 border border-surface-200"
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-50 border border-surface-200"
                     >
-                      <span className="text-lg">💧</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0" />
                       <span className="text-sm text-surface-700">{product}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Pricing */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-surface-200">
-                <h3 className="font-heading font-semibold text-surface-900 mb-3">
-                  💰 Investimento
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-surface-50">
-                    <div>
-                      <p className="text-sm font-medium text-surface-900">Consulta por video</p>
-                      <p className="text-xs text-surface-400">30-45 min com especialista</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-heading font-bold text-brand-600">R$ 89,00</p>
-                      <p className="text-xs text-surface-400">ou 10x de R$ 8,90</p>
-                    </div>
+              {/* Investimento */}
+              <div className="bg-white border border-surface-200 rounded-xl shadow-xs p-5">
+                <p className="text-overline text-surface-500 uppercase tracking-wider mb-4">
+                  Investimento
+                </p>
+                <div className="flex items-center justify-between p-4 rounded-lg bg-surface-50 border border-surface-200 mb-3">
+                  <div>
+                    <p className="text-sm font-medium text-surface-900">Consulta por vídeo</p>
+                    <p className="text-xs text-surface-500 mt-0.5">30–45 min com especialista</p>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-surface-500">
-                    <span>✅</span>
-                    <span>Inclui: consulta completa + receita digital + prontuario eletronico + plano de tratamento</span>
+                  <div className="text-right">
+                    <p className="font-heading text-h3 text-brand-700 font-semibold">R$&nbsp;89</p>
+                    <p className="text-xs text-surface-400">ou 10x de R$&nbsp;8,90</p>
                   </div>
                 </div>
+                <p className="text-xs text-surface-500 leading-relaxed">
+                  Inclui consulta completa, receita digital, prontuário eletrônico e plano de tratamento.
+                </p>
               </div>
 
-              {/* CTA */}
-              <div className="space-y-3">
-                <button
+              {/* CTAs finais */}
+              <div className="space-y-3 pb-2">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
                   onClick={handleBookConsultation}
-                  className="w-full py-4 rounded-2xl gradient-brand text-white font-semibold text-lg hover:opacity-90 transition shadow-lg shadow-brand-500/25"
+                  iconRight={<ArrowRight size={20} strokeWidth={2} />}
                 >
-                  Agendar Minha Consulta — R$89
-                </button>
-                <p className="text-center text-xs text-surface-400">
-                  Suas respostas serao compartilhadas com o medico para agilizar a consulta
+                  Encontrar meu médico — R$&nbsp;89
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  className="w-full"
+                  onClick={() => {
+                    setShowResult(false)
+                    setCurrentStep(1)
+                    setAnswers({})
+                    setResult(null)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                >
+                  Refazer o diagnóstico
+                </Button>
+                <p className="text-center text-xs text-surface-400 leading-relaxed">
+                  Suas respostas serão compartilhadas com o médico para agilizar a consulta.
                 </p>
               </div>
             </div>
@@ -881,27 +1047,42 @@ export default function PatientQuizPage() {
         </div>
       </main>
 
-      {/* Bottom Navigation */}
+      {/* ── NAVEGAÇÃO INFERIOR FIXA ────────────────────────── */}
       {!showResult && (
-        <div className="fixed bottom-0 w-full bg-white border-t border-surface-200 p-4 z-50">
-          <div className="max-w-2xl mx-auto flex gap-3">
-            {currentStep > 1 && (
-              <button
+        <nav
+          aria-label="Navegação do quiz"
+          className="fixed bottom-0 inset-x-0 z-50 bg-white border-t border-surface-200 shadow-lg"
+        >
+          <div className="max-w-2xl mx-auto px-5 py-3 flex items-center gap-3">
+            {currentStep > 1 ? (
+              <Button
+                variant="ghost"
+                size="lg"
                 onClick={handleBack}
-                className="px-6 py-3 rounded-xl border border-surface-200 text-surface-600 font-medium hover:bg-surface-50 transition"
+                iconLeft={<ArrowLeft size={20} strokeWidth={2} />}
+                className="shrink-0"
+                aria-label="Voltar para a etapa anterior"
               >
                 Voltar
-              </button>
+              </Button>
+            ) : (
+              // Placeholder para manter o botão Continuar à direita no step 1
+              <div className="shrink-0 w-[108px]" />
             )}
-            <button
+
+            <Button
+              variant="primary"
+              size="lg"
               onClick={handleNext}
               disabled={!isStepComplete}
-              className="flex-1 py-3 rounded-xl gradient-brand text-white font-semibold hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              iconRight={<ArrowRight size={20} strokeWidth={2} />}
+              className="flex-1"
+              aria-disabled={!isStepComplete}
             >
-              {currentStep === TOTAL_STEPS ? 'Ver Minha Avaliacao' : 'Continuar'}
-            </button>
+              {currentStep === TOTAL_STEPS ? 'Ver meu diagnóstico' : 'Continuar'}
+            </Button>
           </div>
-        </div>
+        </nav>
       )}
     </div>
   )

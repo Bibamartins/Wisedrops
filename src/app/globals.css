@@ -9,10 +9,13 @@
     /* --- Radius --- */
     --radius: 0.75rem;
 
-    /* --- shadcn/ui semantic tokens (v2 — Clínica que respira) --- */
-    --background:         0 0% 98%;        /* surface-50 ~ */
-    --foreground:         0 0% 10%;        /* surface-900 ~ */
-    --card:               0 0% 100%;
+    /* --- shadcn/ui semantic tokens (v2.1 — Clínica que respira) --- */
+    /* v2.1: background pra surface-100 (96%) — cards brancos saltam do fundo
+       com profundidade real, sem precisar de sombra dramática. Premium-style
+       Linear/Stripe: contraste de superfície faz a hierarquia. */
+    --background:         0 0% 96%;        /* surface-100 — body */
+    --foreground:         0 0% 10%;        /* surface-900 */
+    --card:               0 0% 100%;       /* white — salta do background */
     --card-foreground:    0 0% 10%;
     --popover:            0 0% 100%;
     --popover-foreground: 0 0% 10%;
