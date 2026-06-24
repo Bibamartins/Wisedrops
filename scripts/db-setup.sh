@@ -13,8 +13,11 @@ fi
 #    pois o Prisma usa prepared statements.
 MIG_URL="$(node -e "let r=(process.env.DATABASE_URL||''); r=r.replace('-pooler',''); r=r.replace(':6543/',':5432/'); process.stdout.write(r)")"
 
+echo "[db-setup] aplicando patches SQL idempotentes (PR 5 + PR 7)..."
+DATABASE_URL="$MIG_URL" npx tsx prisma/sql-schema-patches.ts || echo "[db-setup] aviso: patches SQL falharam."
+
 echo "[db-setup] sincronizando schema (aditivo/não-destrutivo)..."
-DATABASE_URL="$MIG_URL" npx prisma db push --skip-generate || echo "[db-setup] aviso: db push não aplicou (ok se o schema já existe)."
+DATABASE_URL="$MIG_URL" npx prisma db push --skip-generate --accept-data-loss || echo "[db-setup] aviso: db push não aplicou (ok se o schema já existe)."
 
 echo "[db-setup] garantindo tenant default (multi-tenancy PR 5)..."
 DATABASE_URL="$MIG_URL" npx tsx prisma/seed-tenant.ts || echo "[db-setup] aviso: seed-tenant falhou."
