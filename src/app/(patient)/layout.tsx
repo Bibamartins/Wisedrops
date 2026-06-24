@@ -7,6 +7,7 @@ import {
   HeartPulse,
   ShoppingBag,
   User,
+  Stethoscope,
 } from 'lucide-react'
 import { useAuth } from '@/lib/use-auth'
 import { Navbar } from '@/components/shared/navbar'
@@ -18,6 +19,7 @@ import { Sidebar, type SidebarItem } from '@/components/shared/sidebar'
 
 const PATIENT_NAV: SidebarItem[] = [
   { href: '/home', label: 'Home', icon: LayoutDashboard },
+  { href: '/medicos', label: 'Agendar consulta', icon: Stethoscope },
   { href: '/tratamento', label: 'Tratamento', icon: HeartPulse },
   { href: '/comprar', label: 'Comprar', icon: ShoppingBag },
   { href: '/perfil', label: 'Perfil', icon: User },
