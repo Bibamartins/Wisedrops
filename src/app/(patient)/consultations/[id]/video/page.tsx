@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { VideoRoom } from '@/components/video/video-room'
 import { trpc } from '@/lib/trpc'
@@ -391,6 +391,7 @@ export default function VideoConsultationPage() {
   const [emrSidebarOpen, setEmrSidebarOpen] = useState(false)
   const [callDuration, setCallDuration] = useState('00:00')
   const [errorMessage, setErrorMessage] = useState('')
+  const callStartedAtRef = useRef<number | null>(null)
 
   const { user } = useAuth()
   const consultationQuery = trpc.consultation.getById.useQuery(
@@ -435,6 +436,7 @@ export default function VideoConsultationPage() {
       setConsultation((prev) =>
         prev ? { ...prev, videoRoomUrl: result.roomUrl, videoToken: result.token } : prev
       )
+      callStartedAtRef.current = Date.now()
       setPageState('in-call')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao entrar na consulta'
@@ -445,8 +447,20 @@ export default function VideoConsultationPage() {
 
   const handleCallEnd = useCallback(() => {
     setPageState('post-call')
-    // Mark the consultation completed (idempotent + ownership-checked server-side)
-    endConsultation.mutate({ id: consultationId })
+    // Mark the consultation completed (idempotent + ownership-checked server-side).
+    // Server is the source of truth — we just send client-measured duration as a hint.
+    const startedAt = callStartedAtRef.current
+    const durationMinutes = startedAt
+      ? Math.max(0, Math.round((Date.now() - startedAt) / 60000))
+      : undefined
+    endConsultation.mutate(
+      { id: consultationId, durationMinutes },
+      {
+        onError: (err) => {
+          console.error('[video] endConsultation failed:', err)
+        },
+      },
+    )
   }, [consultationId, endConsultation])
 
   // -------- Loading --------

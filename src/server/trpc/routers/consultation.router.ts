@@ -232,7 +232,45 @@ export const consultationRouter = createTRPCRouter({
         throw new TRPCError({ code: 'FORBIDDEN' })
       }
 
-      // Lazily create the room if it doesn't exist yet (e.g. booked before Daily key was set)
+      // Reject finished/cancelled consultations — no point handing out a token.
+      if (
+        consultation.status === ConsultationStatus.COMPLETED ||
+        consultation.status === ConsultationStatus.CANCELLED ||
+        consultation.status === ConsultationStatus.NO_SHOW
+      ) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Esta consulta ja foi encerrada e nao pode mais ser acessada por video.',
+        })
+      }
+
+      // Schedule window: allow entering up to 15 min before scheduled start,
+      // and up to (duration + 30 min) after. Admins bypass for support cases.
+      const now = Date.now()
+      const scheduledMs = new Date(consultation.scheduledAt).getTime()
+      const durationMs = (consultation.durationMinutes ?? 60) * 60 * 1000
+      const openFromMs = scheduledMs - 15 * 60 * 1000
+      const openUntilMs = scheduledMs + durationMs + 30 * 60 * 1000
+
+      if (ctx.session.role !== 'ADMIN') {
+        if (now < openFromMs) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message:
+              'A sala abre 15 minutos antes do horario agendado. Volte um pouco mais perto da hora marcada.',
+          })
+        }
+        if (now > openUntilMs) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message:
+              'A janela desta consulta ja se encerrou. Reagende com o seu medico.',
+          })
+        }
+      }
+
+      // Lazily create the room if it doesn't exist yet (e.g. booked before Daily
+      // key was set, or earlier booking-time room already expired).
       let roomName = consultation.videoRoomId
       if (!roomName) {
         if (!process.env.DAILY_API_KEY || process.env.DAILY_API_KEY === 'daily_placeholder') {
@@ -241,7 +279,10 @@ export const consultationRouter = createTRPCRouter({
             message: 'Servico de video nao configurado (DAILY_API_KEY ausente)',
           })
         }
-        const room = await createRoom(input.consultationId)
+        const room = await createRoom(input.consultationId, {
+          scheduledAt: consultation.scheduledAt,
+          durationMinutes: consultation.durationMinutes,
+        })
         roomName = room.roomName
       }
 
@@ -250,7 +291,16 @@ export const consultationRouter = createTRPCRouter({
         ? consultation.doctor.user.fullName
         : consultation.patient.user.fullName
 
-      const tokenResult = await generateToken(roomName, role, name, ctx.session.userId)
+      const tokenResult = await generateToken(
+        roomName,
+        role,
+        name,
+        ctx.session.userId,
+        {
+          scheduledAt: consultation.scheduledAt,
+          durationMinutes: consultation.durationMinutes,
+        },
+      )
 
       return {
         token: tokenResult.token,
@@ -467,6 +517,22 @@ export const consultationRouter = createTRPCRouter({
       attachmentUrl: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      // Access control: only the patient, the doctor of this consultation, or an
+      // admin may post in the chat. Same threat model as getById — without this,
+      // any logged-in user could inject a message into another consultation's
+      // chat (PHI exfiltration vector or social-engineering surface).
+      const consultation = await ctx.db.consultation.findUnique({
+        where: { id: input.consultationId },
+        include: { patient: true, doctor: true },
+      })
+      if (!consultation) throw new TRPCError({ code: 'NOT_FOUND' })
+
+      const isPatient = consultation.patient.userId === ctx.session.userId
+      const isDoctor = consultation.doctor.userId === ctx.session.userId
+      if (!isPatient && !isDoctor && ctx.session.role !== 'ADMIN') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado.' })
+      }
+
       return ctx.db.chatMessage.create({
         data: {
           consultationId: input.consultationId,

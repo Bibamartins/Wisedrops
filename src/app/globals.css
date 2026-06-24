@@ -6,34 +6,89 @@
 
 @layer base {
   :root {
+    /* --- Radius --- */
     --radius: 0.75rem;
-    --background: 0 0% 100%;
-    --foreground: 0 0% 9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
-    --primary: 24 95% 53%;
+
+    /* --- shadcn/ui semantic tokens (v2 — Clínica que respira) --- */
+    --background:         0 0% 98%;        /* surface-50 ~ */
+    --foreground:         0 0% 10%;        /* surface-900 ~ */
+    --card:               0 0% 100%;
+    --card-foreground:    0 0% 10%;
+    --popover:            0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    /* primary = brand-600 (#ea580c) — corrige bug WCAG do brand-500 */
+    --primary:            21 90% 48%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 24 95% 53%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+
+    /* secondary = surface-100 */
+    --secondary:            0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
+
+    /* muted = surface-100 */
+    --muted:              0 0% 96%;
+    --muted-foreground:   0 0% 45%;
+
+    /* accent = sage-600 (#486448) — antes era cópia do laranja primary */
+    --accent:             125 17% 28%;
+    --accent-foreground:  0 0% 100%;
+
+    /* destructive = error-600 (#d92d20) */
+    --destructive:            4 72% 49%;
     --destructive-foreground: 0 0% 100%;
+
+    /* border/input = surface-200 */
     --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 24 95% 53%;
+    --input:  0 0% 90%;
+
+    /* ring = brand-500 (foco) */
+    --ring:   21 90% 48%;
+
+    /* --- Motion timing (silk, não spring) --- */
+    --duration-instant:  80ms;
+    --duration-fast:    150ms;
+    --duration-base:    200ms;
+    --duration-slow:    300ms;
+    --duration-crawl:   400ms;
+
+    --ease-out:      cubic-bezier(0.0, 0.0, 0.2, 1.0);
+    --ease-in-out:   cubic-bezier(0.4, 0.0, 0.2, 1.0);
+    --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* --- Shadows (Linear-style: sutis, sem dramatismo) --- */
+    --shadow-xs:          0 1px 2px 0 rgba(0,0,0,0.04);
+    --shadow-sm:          0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
+    --shadow-md:          0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -2px rgba(0,0,0,0.04);
+    --shadow-lg:          0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px -4px rgba(0,0,0,0.04);
+    --shadow-xl:          0 20px 25px -5px rgba(0,0,0,0.06), 0 8px 10px -6px rgba(0,0,0,0.04);
+    --shadow-focus-brand: 0 0 0 3px rgba(249,115,22,0.18);
+    --shadow-focus-sage:  0 0 0 3px rgba(91,125,91,0.18);
+  }
+
+  /* --- Video Room: sub-sistema dark isolado do tema global --- */
+  .video-room {
+    --video-bg:            #0d0d0d;
+    --video-surface:       rgba(255,255,255,0.08);
+    --video-surface-hover: rgba(255,255,255,0.14);
+    --video-border:        rgba(255,255,255,0.12);
+    --video-text:          #f5f5f5;
+    --video-text-muted:    rgba(255,255,255,0.55);
+    --video-brand:         #fb923c;   /* brand-400 — só fill/icon em dark */
+    --video-danger:        #f04438;   /* error-500 */
   }
 
   * {
     @apply border-border;
   }
 
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -46,11 +101,27 @@
     text-wrap: balance;
   }
 
+  /* gradient-brand: v2 — mais refinado (era from-orange-600 to-orange-500) */
   .gradient-brand {
-    @apply bg-gradient-to-r from-orange-600 to-orange-500;
+    @apply bg-gradient-to-r from-brand-700 to-brand-600;
   }
 
+  /* gradient-accent: v2 — mudou de laranja pra sage (era from-orange-500 to-orange-400) */
   .gradient-accent {
-    @apply bg-gradient-to-r from-orange-500 to-orange-400;
+    @apply bg-gradient-to-r from-sage-700 to-sage-500;
+  }
+
+  /* gradient-sage: alias explícito */
+  .gradient-sage {
+    @apply bg-gradient-to-r from-sage-700 to-sage-500;
+  }
+
+  /* Sombras de foco semânticas */
+  .shadow-focus-brand {
+    box-shadow: var(--shadow-focus-brand);
+  }
+
+  .shadow-focus-sage {
+    box-shadow: var(--shadow-focus-sage);
   }
 }

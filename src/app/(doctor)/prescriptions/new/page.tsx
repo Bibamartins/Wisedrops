@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 import { trpc } from '@/lib/trpc'
 
 type PrescriptionTypeUI = 'TYPE_A' | 'TYPE_B' | 'SIMPLE'
@@ -41,6 +41,8 @@ const TYPE_LABEL: Record<PrescriptionTypeUI, string> = {
 
 export default function NewPrescriptionPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialConsultationId = searchParams?.get('consultation') ?? ''
 
   // Consultas do médico — pra ele escolher de qual consulta a prescrição vem.
   const completedQuery = trpc.consultation.listForDoctor.useQuery({
@@ -56,7 +58,7 @@ export default function NewPrescriptionPage() {
 
   const createPrescription = trpc.prescription.create.useMutation()
 
-  const [consultationId, setConsultationId] = useState<string>('')
+  const [consultationId, setConsultationId] = useState<string>(initialConsultationId)
   const [prescriptionType, setPrescriptionType] = useState<PrescriptionTypeUI>('TYPE_B')
   const [icdCodes, setIcdCodes] = useState<string>('')
   const [clinicalJustification, setClinicalJustification] = useState('')
@@ -80,6 +82,19 @@ export default function NewPrescriptionPage() {
   }, [completedQuery.data, upcomingQuery.data])
 
   const selectedConsult = consultations.find((c) => c.id === consultationId)
+
+  // If the doctor lands here from a "Emitir receita" link after a video call
+  // (URL: /prescriptions/new?consultation=ID), pre-select that consultation
+  // as soon as the dropdown options load.
+  useEffect(() => {
+    if (
+      initialConsultationId &&
+      !consultationId &&
+      consultations.some((c) => c.id === initialConsultationId)
+    ) {
+      setConsultationId(initialConsultationId)
+    }
+  }, [initialConsultationId, consultationId, consultations])
 
   const handleAddItem = () => setItems((arr) => [...arr, emptyItem()])
   const handleRemoveItem = (id: string) =>

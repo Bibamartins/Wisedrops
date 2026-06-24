@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { VideoRoom } from '@/components/video/video-room'
@@ -206,7 +206,7 @@ function PostCallSummary({ appointment }: { appointment: Appointment }) {
 
         <div className="space-y-3">
           <Link
-            href="/prescriptions/new"
+            href={`/prescriptions/new?consultation=${appointment.id}`}
             className="block w-full py-3 rounded-xl bg-brand-600 text-white font-medium hover:bg-brand-700 transition"
           >
             Emitir receita
@@ -236,6 +236,7 @@ export default function DoctorVideoPage() {
   const [appointment, setAppointment] = useState<Appointment | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [emrOpen, setEmrOpen] = useState(false)
+  const callStartedAtRef = useRef<number | null>(null)
 
   const consultationQuery = trpc.consultation.getById.useQuery(
     { id: consultationId },
@@ -276,6 +277,7 @@ export default function DoctorVideoPage() {
       const result = await getVideoToken.mutateAsync({ consultationId })
       setVideoToken(result.token)
       setVideoRoomUrl(result.roomUrl)
+      callStartedAtRef.current = Date.now()
       setPageState('in-call')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao iniciar consulta'
@@ -286,8 +288,22 @@ export default function DoctorVideoPage() {
 
   const handleCallEnd = useCallback(() => {
     setPageState('post-call')
-    // Mark the consultation completed (idempotent + ownership-checked server-side)
-    endConsultation.mutate({ id: consultationId })
+    // Mark the consultation completed (idempotent + ownership-checked server-side).
+    // Send client-measured duration; server still computes a fallback if absent.
+    const startedAt = callStartedAtRef.current
+    const durationMinutes = startedAt
+      ? Math.max(0, Math.round((Date.now() - startedAt) / 60000))
+      : undefined
+    endConsultation.mutate(
+      { id: consultationId, durationMinutes },
+      {
+        onError: (err) => {
+          // Don't block the post-call UI — just surface the issue so the doctor
+          // knows to retry from the consultation detail screen.
+          console.error('[video] endConsultation failed:', err)
+        },
+      },
+    )
   }, [consultationId, endConsultation])
 
   if (pageState === 'loading') {
@@ -414,7 +430,7 @@ export default function DoctorVideoPage() {
                     Ver prontuario completo
                   </Link>
                   <Link
-                    href={`/prescriptions/new`}
+                    href={`/prescriptions/new?consultation=${appointment.id}`}
                     className="block w-full py-2 rounded-lg bg-brand-50 border border-brand-200 text-sm text-brand-700 hover:bg-brand-100 transition text-center"
                   >
                     Emitir receita

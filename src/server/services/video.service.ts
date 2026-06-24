@@ -84,14 +84,29 @@ const DAILY_API_BASE = 'https://api.daily.co/v1'
 const DAILY_API_KEY = process.env.DAILY_API_KEY!
 const DAILY_DOMAIN = process.env.DAILY_DOMAIN // e.g., "wisedrops"
 
-/** Default room duration: 90 minutes from creation */
+/** Default room duration: 90 minutes from creation (fallback only) */
 const DEFAULT_ROOM_EXPIRY_MINUTES = 90
 
-/** Token validity: 2 hours from generation */
+/** Token validity: 2 hours from generation (fallback only) */
 const TOKEN_EXPIRY_MINUTES = 120
 
 /** Max consultation room participants */
 const MAX_PARTICIPANTS = 2
+
+/**
+ * How long after the scheduled end of a consultation the room/token stays valid.
+ * Covers overruns (doctor finishing late) without leaving rooms open forever.
+ */
+const POST_END_BUFFER_MINUTES = 30
+
+/**
+ * How early before scheduled start the room/token becomes valid.
+ * Lets the doctor warm up and the patient sit in the waiting room.
+ */
+const PRE_START_BUFFER_MINUTES = 15
+
+/** Assumed consultation length when no override is provided. */
+const DEFAULT_CONSULTATION_MINUTES = 60
 
 // ============================================================
 // Internal Helpers
@@ -137,6 +152,33 @@ function minutesFromNow(minutes: number): number {
   return Math.floor(Date.now() / 1000) + minutes * 60
 }
 
+/**
+ * Computes a Daily.co `exp` (unix seconds) that covers the entire consultation
+ * window, anchored on `scheduledAt`. Falls back to a relative-from-now window
+ * if no schedule is given (preserves old behavior for legacy callers).
+ *
+ * Floors at "now + 15min" so even past-due consultations still get a usable
+ * window when the doctor finally joins.
+ */
+function consultationExpUnix(opts?: {
+  scheduledAt?: Date | null
+  durationMinutes?: number | null
+}): number {
+  const fallback = minutesFromNow(DEFAULT_ROOM_EXPIRY_MINUTES)
+  if (!opts?.scheduledAt) return fallback
+
+  const scheduled = new Date(opts.scheduledAt).getTime()
+  if (Number.isNaN(scheduled)) return fallback
+
+  const duration =
+    (opts.durationMinutes ?? DEFAULT_CONSULTATION_MINUTES) * 60 * 1000
+  const buffer = POST_END_BUFFER_MINUTES * 60 * 1000
+
+  const expMs = scheduled + duration + buffer
+  const floorMs = Date.now() + 15 * 60 * 1000 // never less than 15 min from now
+  return Math.floor(Math.max(expMs, floorMs) / 1000)
+}
+
 // ============================================================
 // Public API
 // ============================================================
@@ -158,11 +200,19 @@ export async function createRoom(
   options?: {
     expiryMinutes?: number
     enableRecording?: boolean
+    scheduledAt?: Date | null
+    durationMinutes?: number | null
   }
 ): Promise<VideoRoomResult> {
-  const expiryMinutes = options?.expiryMinutes ?? DEFAULT_ROOM_EXPIRY_MINUTES
   const enableRecording = options?.enableRecording ?? false
-  const expiresAtUnix = minutesFromNow(expiryMinutes)
+  // Prefer scheduled-anchored expiry; allow explicit override; fall back to "now + default".
+  const expiresAtUnix =
+    options?.expiryMinutes != null
+      ? minutesFromNow(options.expiryMinutes)
+      : consultationExpUnix({
+          scheduledAt: options?.scheduledAt,
+          durationMinutes: options?.durationMinutes,
+        })
   const roomName = generateRoomName(consultationId)
 
   const roomConfig: DailyRoomConfig = {
@@ -220,10 +270,22 @@ export async function generateToken(
   roomName: string,
   participantRole: ParticipantRole,
   userName: string,
-  userId: string
+  userId: string,
+  options?: {
+    scheduledAt?: Date | null
+    durationMinutes?: number | null
+  }
 ): Promise<VideoTokenResult> {
   const isDoctor = participantRole === 'doctor'
-  const expiresAtUnix = minutesFromNow(TOKEN_EXPIRY_MINUTES)
+  // Anchor the token expiry to the consultation window so consultations booked
+  // far in advance don't immediately get a stale token. Falls back to the
+  // legacy "now + 120min" if no schedule is provided.
+  const expiresAtUnix = options?.scheduledAt
+    ? consultationExpUnix({
+        scheduledAt: options.scheduledAt,
+        durationMinutes: options.durationMinutes,
+      })
+    : minutesFromNow(TOKEN_EXPIRY_MINUTES)
 
   const tokenPayload = {
     properties: {
@@ -386,7 +448,11 @@ export async function prepareConsultationRoom(
   consultationId: string,
   doctor: { name: string; userId: string },
   patient: { name: string; userId: string },
-  options?: { enableRecording?: boolean }
+  options?: {
+    enableRecording?: boolean
+    scheduledAt?: Date | null
+    durationMinutes?: number | null
+  }
 ): Promise<{
   room: VideoRoomResult
   doctorToken: VideoTokenResult
@@ -394,9 +460,13 @@ export async function prepareConsultationRoom(
 }> {
   const room = await createRoom(consultationId, options)
 
+  const tokenOpts = {
+    scheduledAt: options?.scheduledAt,
+    durationMinutes: options?.durationMinutes,
+  }
   const [doctorToken, patientToken] = await Promise.all([
-    generateToken(room.roomName, 'doctor', doctor.name, doctor.userId),
-    generateToken(room.roomName, 'patient', patient.name, patient.userId),
+    generateToken(room.roomName, 'doctor', doctor.name, doctor.userId, tokenOpts),
+    generateToken(room.roomName, 'patient', patient.name, patient.userId, tokenOpts),
   ])
 
   return { room, doctorToken, patientToken }
