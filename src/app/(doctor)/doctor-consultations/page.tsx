@@ -396,6 +396,12 @@ export default function ConsultationsPage() {
 
                     {/* Ações contextuais */}
                     <div className="flex gap-2 flex-wrap shrink-0">
+                      <Link
+                        href={`/briefing/${c.id}`}
+                        className="px-3 py-1.5 rounded-lg bg-sage-50 text-sage-700 text-xs font-medium hover:bg-sage-100 transition"
+                      >
+                        Briefing
+                      </Link>
                       <button
                         onClick={() => setQuizFor({ patientId, name: patientName })}
                         className="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 text-xs font-medium hover:bg-brand-100 transition"

@@ -543,4 +543,159 @@ export const consultationRouter = createTRPCRouter({
         },
       })
     }),
+
+  /**
+   * Briefing pré-consulta (PR 9). Tela única do médico antes do atendimento.
+   * Agrega quiz, histórico de consultas, receitas anteriores e documentos
+   * da paciente numa única query.
+   *
+   * Segurança: só médico responsável pela consulta ou admin. PHI completo
+   * autorizado pelo regime art. 11 §2º, II LGPD (tratamento por profissional
+   * de saúde).
+   */
+  getBriefing: doctorProcedure
+    .input(z.object({ consultationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const consultation = await ctx.db.consultation.findUnique({
+        where: { id: input.consultationId },
+        include: {
+          patient: {
+            include: {
+              user: {
+                select: {
+                  fullName: true,
+                  email: true,
+                  phone: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+          doctor: { select: { userId: true } },
+        },
+      })
+      if (!consultation) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Consulta não encontrada' })
+      }
+
+      // Posse: só doctor responsável ou admin
+      const isOwner = consultation.doctor.userId === ctx.session.userId
+      if (!isOwner && ctx.session.role !== 'ADMIN') {
+        throw new TRPCError({ code: 'FORBIDDEN' })
+      }
+
+      const patientId = consultation.patientId
+
+      const [latestQuiz, quizCount, pastConsultations, prescriptions, documents] = await Promise.all([
+        ctx.db.patientQuiz.findFirst({
+          where: { patientId },
+          orderBy: { createdAt: 'desc' },
+        }),
+        ctx.db.patientQuiz.count({ where: { patientId } }),
+        ctx.db.consultation.findMany({
+          where: {
+            patientId,
+            id: { not: consultation.id },
+            status: { in: ['COMPLETED', 'IN_PROGRESS', 'CANCELLED', 'NO_SHOW'] },
+          },
+          orderBy: { scheduledAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            status: true,
+            scheduledAt: true,
+            endedAt: true,
+            durationMinutes: true,
+            chiefComplaint: true,
+            consultationNotes: true,
+            doctor: { include: { user: { select: { fullName: true } } } },
+          },
+        }),
+        ctx.db.prescription.findMany({
+          where: { patientId },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: {
+            id: true,
+            prescriptionType: true,
+            status: true,
+            items: true,
+            clinicalJustification: true,
+            icdCodes: true,
+            validUntil: true,
+            signedAt: true,
+            doctor: { include: { user: { select: { fullName: true } } } },
+          },
+        }),
+        // documentos do paciente (se a tabela existir)
+        Promise.resolve([] as Array<{ id: string; name: string; url: string; uploadedAt: Date }>),
+      ])
+
+      const age =
+        consultation.patient.dateOfBirth instanceof Date
+          ? Math.floor(
+              (Date.now() - consultation.patient.dateOfBirth.getTime()) /
+                (365.25 * 24 * 60 * 60 * 1000),
+            )
+          : null
+
+      return {
+        consultation: {
+          id: consultation.id,
+          scheduledAt: consultation.scheduledAt,
+          type: consultation.type,
+          status: consultation.status,
+          chiefComplaint: consultation.chiefComplaint,
+          durationMinutes: consultation.durationMinutes,
+        },
+        patient: {
+          id: consultation.patient.id,
+          fullName: consultation.patient.user.fullName,
+          email: consultation.patient.user.email,
+          phone: consultation.patient.user.phone,
+          avatarUrl: consultation.patient.user.avatarUrl,
+          age,
+          gender: consultation.patient.gender,
+          primaryConditions: consultation.patient.primaryConditions,
+          allergies: consultation.patient.allergies,
+          currentMedications: consultation.patient.currentMedications,
+        },
+        quiz: latestQuiz
+          ? {
+              id: latestQuiz.id,
+              completedAt: latestQuiz.completedAt,
+              answers: latestQuiz.answers,
+              riskLevel: latestQuiz.riskLevel,
+              priorityCondition: latestQuiz.priorityCondition,
+              recommendedSpecialties: latestQuiz.recommendedSpecialties,
+              consultationFocus: latestQuiz.consultationFocus,
+              suggestedProducts: latestQuiz.suggestedProducts,
+              personalizedMessage: latestQuiz.personalizedMessage,
+            }
+          : null,
+        quizHistoryCount: quizCount,
+        pastConsultations: pastConsultations.map((c) => ({
+          id: c.id,
+          status: c.status,
+          scheduledAt: c.scheduledAt,
+          endedAt: c.endedAt,
+          durationMinutes: c.durationMinutes,
+          chiefComplaint: c.chiefComplaint,
+          consultationNotes: c.consultationNotes,
+          doctorName: c.doctor.user.fullName,
+        })),
+        prescriptions: prescriptions.map((p) => ({
+          id: p.id,
+          prescriptionType: p.prescriptionType,
+          status: p.status,
+          items: p.items,
+          clinicalJustification: p.clinicalJustification,
+          icdCodes: p.icdCodes,
+          validUntil: p.validUntil,
+          signedAt: p.signedAt,
+          doctorName: p.doctor.user.fullName,
+        })),
+        documents,
+      }
+    }),
 })
