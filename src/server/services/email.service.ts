@@ -17,7 +17,7 @@ import { Resend } from 'resend'
 
 const KEY = process.env.RESEND_API_KEY
 const FROM = process.env.EMAIL_FROM ?? 'WiseDrops <onboarding@resend.dev>'
-const BASE_URL = process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://wisedrops-303.netlify.app'
+const BASE_URL = process.env.NEXTAUTH_URL ?? process.env.APP_URL ?? 'https://wisedrops.netlify.app'
 
 let _client: Resend | null = null
 function client(): Resend | null {

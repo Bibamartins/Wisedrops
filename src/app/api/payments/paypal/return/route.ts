@@ -18,7 +18,7 @@ import { PaymentStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
-const SITE = process.env.NEXTAUTH_URL || 'https://wisedrops-303.netlify.app'
+const SITE = process.env.NEXTAUTH_URL || 'https://wisedrops.netlify.app'
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)

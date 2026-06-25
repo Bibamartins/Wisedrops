@@ -347,7 +347,7 @@ export const paymentRouter = createTRPCRouter({
       }
 
       const amountCents = consultation.priceCents || 8900
-      const siteUrl = process.env.NEXTAUTH_URL || 'https://wisedrops-303.netlify.app'
+      const siteUrl = process.env.NEXTAUTH_URL || 'https://wisedrops.netlify.app'
 
       const order = await createPaypalOrder({
         amountCents,
@@ -408,7 +408,7 @@ export const paymentRouter = createTRPCRouter({
         })
       }
 
-      const siteUrl = process.env.NEXTAUTH_URL || 'https://wisedrops-303.netlify.app'
+      const siteUrl = process.env.NEXTAUTH_URL || 'https://wisedrops.netlify.app'
       const description = `Pedido WiseDrops #${order.id.slice(0, 8)} (${order.items.length} item)`
 
       const paypal = await createPaypalOrder({
