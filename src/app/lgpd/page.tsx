@@ -108,7 +108,7 @@ export default function LgpdPage() {
               <p>
                 Para exercer seus direitos ou tirar dúvidas sobre privacidade:<br /><br />
                 <strong>E-mail</strong>: <a href="mailto:dpo@wisedrops.com.br" className="text-brand-700 underline">dpo@wisedrops.com.br</a><br />
-                <strong>WhatsApp</strong>: <a href="https://wa.me/5519929318700" className="text-brand-700 underline">+55 19 92931-8700</a><br /><br />
+                <strong>WhatsApp</strong>: <a href="https://wa.me/14073835692" className="text-brand-700 underline">+1 (407) 383-5692</a><br /><br />
                 Respondemos em até <strong>15 dias úteis</strong> conforme exigência legal.
               </p>
             </div>

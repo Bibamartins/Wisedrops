@@ -463,9 +463,9 @@ export default function LandingPage() {
             <div>
               <h4 className="font-heading font-semibold text-white mb-4">Suporte</h4>
               <div className="space-y-2 text-sm">
-                <a href="https://wa.me/5519929318700" target="_blank" rel="noopener noreferrer" className="block hover:text-white transition">Central de Ajuda</a>
+                <a href="https://wa.me/14073835692" target="_blank" rel="noopener noreferrer" className="block hover:text-white transition">Central de Ajuda</a>
                 <a href="mailto:contato@wisedrops.com.br" className="block hover:text-white transition">Contato</a>
-                <a href="https://wa.me/5519929318700" target="_blank" rel="noopener noreferrer" className="block hover:text-white transition">WhatsApp</a>
+                <a href="https://wa.me/14073835692" target="_blank" rel="noopener noreferrer" className="block hover:text-white transition">WhatsApp</a>
               </div>
             </div>
             <div>
@@ -482,7 +482,7 @@ export default function LandingPage() {
               &copy; 2024 WiseDrops. Todos os direitos reservados
             </p>
             <div className="flex items-center gap-4 text-xs">
-              <a href="https://wa.me/5519929318700" className="hover:text-white transition">WhatsApp: +55 19 92931-8700</a>
+              <a href="https://wa.me/14073835692" className="hover:text-white transition">WhatsApp: +1 (407) 383-5692</a>
               <a href="https://instagram.com/wisedrops.br" className="hover:text-white transition">@wisedrops.br</a>
             </div>
           </div>

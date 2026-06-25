@@ -118,7 +118,7 @@ export default function TermosPage() {
             <h2 className="text-h2 font-heading font-semibold text-surface-900 mb-3">10. Contato</h2>
             <p>
               Dúvidas sobre estes termos: <a href="mailto:contato@wisedrops.com.br" className="text-brand-700 underline">contato@wisedrops.com.br</a>{' '}
-              ou <a href="https://wa.me/5519929318700" className="text-brand-700 underline">WhatsApp +55 19 92931-8700</a>.
+              ou <a href="https://wa.me/14073835692" className="text-brand-700 underline">WhatsApp +1 (407) 383-5692</a>.
             </p>
           </section>
         </div>

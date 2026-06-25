@@ -106,7 +106,7 @@ export default function PrivacidadePage() {
             <h2 className="text-h2 font-heading font-semibold text-surface-900 mb-3">7. Encarregado de Dados (DPO)</h2>
             <p>
               <strong>E-mail</strong>: <a href="mailto:dpo@wisedrops.com.br" className="text-brand-700 underline">dpo@wisedrops.com.br</a><br />
-              <strong>WhatsApp</strong>: <a href="https://wa.me/5519929318700" className="text-brand-700 underline">+55 19 92931-8700</a>
+              <strong>WhatsApp</strong>: <a href="https://wa.me/14073835692" className="text-brand-700 underline">+1 (407) 383-5692</a>
             </p>
           </section>
 
