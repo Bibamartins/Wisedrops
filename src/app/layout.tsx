@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from '@/components/ui/toast'
+import { WhatsappFab } from '@/components/shared/whatsapp-fab'
 
 export const metadata: Metadata = {
   title: 'WiseDrops | Cannabis Medicinal com Medicos Prescritores',
@@ -55,6 +56,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <Toaster />
+          <WhatsappFab />
         </Providers>
       </body>
     </html>
