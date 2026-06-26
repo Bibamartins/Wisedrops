@@ -4,6 +4,10 @@ import { TRPCError } from '@trpc/server'
 import { UserRole, Gender } from '@prisma/client'
 import { hashPassword } from '@/server/auth/auth.config'
 import { upsertContact } from '@/server/services/hubspot.service'
+import {
+  sendPatientWelcomeEmail,
+  sendDoctorRegistrationReceivedEmail,
+} from '@/server/services/email.service'
 
 // Validation schemas
 const registerPatientSchema = z.object({
@@ -72,7 +76,7 @@ export const authRouter = createTRPCRouter({
         include: { patient: true },
       })
 
-      // HubSpot sync (best-effort)
+      // HubSpot sync + e-mail de boas-vindas (best-effort)
       const [firstName, ...rest] = input.fullName.split(' ')
       await Promise.allSettled([
         upsertContact({
@@ -82,6 +86,10 @@ export const authRouter = createTRPCRouter({
           phone: input.phone,
           role: 'PATIENT',
           status: 'REGISTERED',
+        }),
+        sendPatientWelcomeEmail({
+          patientEmail: user.email,
+          patientName: user.fullName,
         }),
       ])
 
@@ -131,7 +139,7 @@ export const authRouter = createTRPCRouter({
         include: { doctor: true },
       })
 
-      // HubSpot sync (best-effort) — médico em onboarding
+      // HubSpot sync + e-mail "cadastro recebido" (best-effort)
       const [firstName, ...rest] = input.fullName.split(' ')
       await Promise.allSettled([
         upsertContact({
@@ -142,6 +150,10 @@ export const authRouter = createTRPCRouter({
           state: input.crmState,
           role: 'DOCTOR',
           status: 'LEAD', // vira ACTIVE quando admin aprovar
+        }),
+        sendDoctorRegistrationReceivedEmail({
+          doctorEmail: user.email,
+          doctorName: user.fullName,
         }),
       ])
 

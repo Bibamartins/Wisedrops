@@ -183,6 +183,106 @@ export async function sendPatientPrescriptionReadyEmail(input: {
   await send(input.patientEmail, 'Sua receita está pronta na WiseDrops', layout('Receita pronta', body))
 }
 
+/** E-mail de boas-vindas ao paciente recém-cadastrado. */
+export async function sendPatientWelcomeEmail(input: {
+  patientEmail: string
+  patientName: string
+}): Promise<void> {
+  const quizUrl = `${BASE_URL}/quiz`
+  const uploadUrl = `${BASE_URL}/upload-receita`
+  const firstName = input.patientName.split(' ')[0]
+  const body = `
+    <h1 style="margin:0 0 16px;font-size:24px;color:#1a1a1a;">Bem-vindo(a) à WiseDrops, ${firstName}!</h1>
+    <p style="margin:0 0 16px;color:#374151;line-height:1.6;">
+      Sua conta foi criada com sucesso. Estamos aqui pra te conectar a médicos prescritores certificados em cannabis medicinal, com acompanhamento real do começo ao fim do tratamento.
+    </p>
+
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:18px;margin:0 0 20px;">
+      <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#166534;">Como você prefere começar?</p>
+      <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6;">
+        <strong>1.</strong> Faça nosso diagnóstico inicial em 3 minutos e seja conectado ao médico ideal pra sua condição.
+      </p>
+      <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
+        <strong>2.</strong> Já tem receita médica? Pule pro upload de documentação e libere o catálogo direto.
+      </p>
+    </div>
+
+    <div style="margin:0 0 12px;">${button('Fazer diagnóstico', quizUrl)}</div>
+    <div style="margin:0 0 8px;">
+      <a href="${uploadUrl}" style="color:#ea580c;font-size:14px;text-decoration:underline;">Já tenho receita →</a>
+    </div>
+
+    <p style="margin:24px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">
+      Qualquer dúvida, é só responder este e-mail ou chamar no WhatsApp <a href="https://wa.me/14073835692" style="color:#ea580c;">+1 (407) 383-5692</a>.
+    </p>
+  `
+  await send(input.patientEmail, `Bem-vindo à WiseDrops, ${firstName}!`, layout('Bem-vindo', body))
+}
+
+/** E-mail de cadastro recebido ao médico (antes da aprovação admin). */
+export async function sendDoctorRegistrationReceivedEmail(input: {
+  doctorEmail: string
+  doctorName: string
+}): Promise<void> {
+  const firstName = input.doctorName.split(' ')[0]
+  const body = `
+    <h1 style="margin:0 0 16px;font-size:22px;color:#1a1a1a;">Cadastro recebido</h1>
+    <p style="margin:0 0 12px;color:#374151;line-height:1.6;">Dr(a). ${firstName},</p>
+    <p style="margin:0 0 20px;color:#374151;line-height:1.6;">
+      Recebemos seu cadastro como médico prescritor na WiseDrops. Vamos analisar sua documentação (CRM, diploma, RDC 327) em até <strong>1 a 3 dias úteis</strong>.
+    </p>
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px;margin:0 0 20px;">
+      <p style="margin:0;color:#9a3412;font-size:14px;line-height:1.6;">
+        <strong>Próximo passo:</strong> Aguarde nosso e-mail confirmando a aprovação. Após aprovado, você acessa o painel pra configurar agenda, valor de consulta e começar a atender.
+      </p>
+    </div>
+    <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.6;">
+      Dúvidas? Responde este e-mail ou WhatsApp <a href="https://wa.me/14073835692" style="color:#ea580c;">+1 (407) 383-5692</a>.
+    </p>
+  `
+  await send(input.doctorEmail, 'Cadastro recebido — análise em 1 a 3 dias', layout('Cadastro recebido', body))
+}
+
+/** E-mail pós-quiz com resumo + próximo passo. */
+export async function sendPatientQuizCompletedEmail(input: {
+  patientEmail: string
+  patientName: string
+  riskLevel: string // 'low' | 'medium' | 'high'
+  priorityCondition: string
+  consultationFocus: string[]
+}): Promise<void> {
+  const url = `${BASE_URL}/medicos`
+  const firstName = input.patientName.split(' ')[0]
+  const riskLabel =
+    input.riskLevel === 'high' ? 'Alta' :
+    input.riskLevel === 'medium' ? 'Média' :
+    'Baixa'
+  const focusItems = input.consultationFocus.slice(0, 4).map((f) =>
+    `<span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#e6ede6;color:#3a4f3a;font-size:12px;margin:0 4px 4px 0;">${f}</span>`
+  ).join('')
+
+  const body = `
+    <h1 style="margin:0 0 12px;font-size:22px;color:#1a1a1a;">Seu diagnóstico inicial está pronto, ${firstName}</h1>
+    <p style="margin:0 0 20px;color:#374151;line-height:1.6;">
+      Analisamos suas respostas e identificamos o foco da sua próxima consulta. Agora é hora de escolher um médico prescritor.
+    </p>
+
+    <div style="background:#f8f7f5;border:1px solid #e5e5e5;border-radius:10px;padding:16px;margin:0 0 20px;">
+      <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#737373;text-transform:uppercase;letter-spacing:1px;">Sua avaliação</p>
+      <p style="margin:0 0 4px;color:#1a1a1a;font-size:15px;"><strong>Prioridade clínica:</strong> ${riskLabel}</p>
+      <p style="margin:0 0 12px;color:#1a1a1a;font-size:15px;"><strong>Condição prioritária:</strong> ${input.priorityCondition}</p>
+      ${focusItems ? `<p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#737373;">Foco da consulta</p><div>${focusItems}</div>` : ''}
+    </div>
+
+    <div style="margin:0 0 12px;">${button('Escolher médico', url)}</div>
+
+    <p style="margin:24px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">
+      Você tem médicos certificados em cannabis medicinal disponíveis pra consulta em até 48h. Sem custo de plataforma além do valor da consulta médica.
+    </p>
+  `
+  await send(input.patientEmail, 'Sua avaliação está pronta — próximo passo: médico', layout('Avaliação pronta', body))
+}
+
 export async function sendPatientOrderConfirmedEmail(input: {
   patientEmail: string
   patientName: string
