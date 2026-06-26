@@ -46,6 +46,36 @@ const PATCHES = [
 
   // Unique index parcial em slug (nullable mas único quando setado)
   `CREATE UNIQUE INDEX IF NOT EXISTS "doctors_slug_key" ON "doctors"("slug") WHERE "slug" IS NOT NULL`,
+
+  // ---- Fluxo "Já tenho receita" (PR-A/B/C/D/E) ----
+  `DO $$ BEGIN
+     CREATE TYPE "ExternalPrescriptionStatus" AS ENUM ('PENDING','APPROVED','REJECTED','EXPIRED');
+   EXCEPTION WHEN duplicate_object THEN null; END $$`,
+
+  `CREATE TABLE IF NOT EXISTS "external_prescriptions" (
+    "id"               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    "patientId"        uuid NOT NULL,
+    "tenantId"         uuid,
+    "prescriptionKey"  varchar NOT NULL,
+    "identityDocKey"   varchar NOT NULL,
+    "addressProofKey"  varchar NOT NULL,
+    "anvisaAuthKey"    varchar,
+    "doctorName"       varchar NOT NULL,
+    "doctorCrm"        varchar,
+    "doctorCrmState"   char(2),
+    "conditionTreated" varchar,
+    "notes"            text,
+    "status"           "ExternalPrescriptionStatus" NOT NULL DEFAULT 'PENDING',
+    "submittedAt"      timestamp(3) NOT NULL DEFAULT now(),
+    "reviewedAt"       timestamp(3),
+    "reviewedById"     uuid,
+    "rejectionReason"  text,
+    CONSTRAINT "fk_external_rx_patient" FOREIGN KEY ("patientId") REFERENCES "patients"("id") ON DELETE CASCADE
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS "external_prescriptions_status_idx" ON "external_prescriptions"("status","submittedAt" DESC)`,
+  `CREATE INDEX IF NOT EXISTS "external_prescriptions_patientId_idx" ON "external_prescriptions"("patientId")`,
+  `CREATE INDEX IF NOT EXISTS "external_prescriptions_tenantId_idx" ON "external_prescriptions"("tenantId")`,
 ]
 
 async function main() {

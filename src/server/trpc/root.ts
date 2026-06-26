@@ -13,6 +13,7 @@ import { quizRouter } from './routers/quiz.router'
 import { prescriptionRouter } from './routers/prescription.router'
 import { documentRouter } from './routers/document.router'
 import { marketplaceRouter } from './routers/marketplace.router'
+import { externalPrescriptionRouter } from './routers/external-prescription.router'
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -29,6 +30,7 @@ export const appRouter = createTRPCRouter({
   prescription: prescriptionRouter,
   document: documentRouter,
   marketplace: marketplaceRouter,
+  externalPrescription: externalPrescriptionRouter,
 })
 
 export type AppRouter = typeof appRouter

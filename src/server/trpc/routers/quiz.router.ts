@@ -158,7 +158,7 @@ export const quizRouter = createTRPCRouter({
       }
     }
 
-    const [latestQuiz, consultations, prescriptions, orders] = await Promise.all([
+    const [latestQuiz, consultations, prescriptions, orders, externalRx] = await Promise.all([
       ctx.db.patientQuiz.findFirst({
         where: { patientId: patient.id },
         orderBy: { createdAt: 'desc' },
@@ -199,7 +199,65 @@ export const quizRouter = createTRPCRouter({
           estimatedDelivery: true,
         },
       }),
+      // PR fluxo "Já tenho receita" — última receita externa
+      ctx.db.externalPrescription.findFirst({
+        where: { patientId: patient.id },
+        orderBy: { submittedAt: 'desc' },
+        select: { id: true, status: true, submittedAt: true, rejectionReason: true, doctorName: true },
+      }),
     ])
+
+    // ---- Fluxo "Já tenho receita" tem PRIORIDADE sobre quiz ----
+    // Se paciente tem receita externa em qualquer status, é caminho 2.
+    if (externalRx) {
+      if (externalRx.status === 'PENDING') {
+        return {
+          state: 'EXTERNAL_RX_PENDING' as const,
+          context: {
+            patientId: patient.id,
+            externalRxId: externalRx.id,
+            submittedAt: externalRx.submittedAt,
+            doctorName: externalRx.doctorName,
+          },
+        }
+      }
+      if (externalRx.status === 'REJECTED') {
+        return {
+          state: 'EXTERNAL_RX_REJECTED' as const,
+          context: {
+            patientId: patient.id,
+            externalRxId: externalRx.id,
+            rejectionReason: externalRx.rejectionReason,
+          },
+        }
+      }
+      if (externalRx.status === 'APPROVED') {
+        // Aprovada — verifica se já fez pedido
+        const hasDelivered = orders.some((o) => o.status === 'DELIVERED')
+        const inTransit = orders.find((o) =>
+          ['PAID', 'PROCESSING', 'AWAITING_ANVISA', 'ANVISA_APPROVED', 'SHIPPED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status),
+        )
+        if (hasDelivered) {
+          return { state: 'TREATMENT_ACTIVE' as const, context: { patientId: patient.id } }
+        }
+        if (inTransit) {
+          return {
+            state: 'ORDER_PLACED' as const,
+            context: {
+              patientId: patient.id,
+              orderId: inTransit.id,
+              orderStatus: inTransit.status,
+              estimatedDelivery: inTransit.estimatedDelivery,
+            },
+          }
+        }
+        // Sem pedido ainda — libera catálogo
+        return {
+          state: 'EXTERNAL_RX_APPROVED' as const,
+          context: { patientId: patient.id, externalRxId: externalRx.id },
+        }
+      }
+    }
 
     // Estado derivado — começa do mais avançado
     const hasActiveTreatment = orders.some((o) => o.status === 'DELIVERED')

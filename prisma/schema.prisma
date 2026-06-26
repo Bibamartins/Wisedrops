@@ -40,6 +40,7 @@ model Tenant {
   doctors  Doctor[]
   patients Patient[]
   products Product[]
+  externalPrescriptions ExternalPrescription[]
 
   @@map("tenants")
 }
@@ -149,9 +150,54 @@ model Patient {
   anvisaAuthorizations AnvisaAuthorization[]
   quizResponses        PatientQuiz[]
   documents            PatientDocument[]
+  externalPrescriptions ExternalPrescription[]
 
   @@index([tenantId])
   @@map("patients")
+}
+
+// Receita externa (PR fluxo "Já tenho receita"): paciente que já tem
+// prescrição médica fora da plataforma envia 4 documentos pra Bianca
+// aprovar e ir direto pro catálogo, pulando quiz + consulta.
+model ExternalPrescription {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId        String   @db.Uuid
+  tenantId         String?  @db.Uuid
+
+  // Storage keys (Netlify Blobs)
+  prescriptionKey  String   // receita médica (obrigatório)
+  identityDocKey   String   // RG (obrigatório)
+  addressProofKey  String   // comprovante de residência (obrigatório)
+  anvisaAuthKey    String?  // autorização ANVISA (opcional — se for produto importado RDC 660)
+
+  // Info clínica complementar
+  doctorName       String
+  doctorCrm        String?
+  doctorCrmState   String?  @db.Char(2)
+  conditionTreated String?
+  notes            String?  @db.Text
+
+  // Workflow
+  status           ExternalPrescriptionStatus @default(PENDING)
+  submittedAt      DateTime @default(now())
+  reviewedAt       DateTime?
+  reviewedById     String?  @db.Uuid
+  rejectionReason  String?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  tenant  Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([status, submittedAt])
+  @@index([patientId])
+  @@index([tenantId])
+  @@map("external_prescriptions")
+}
+
+enum ExternalPrescriptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
 }
 
 // Documentos enviados pelo paciente (RG, comprovante, autorização ANVISA, etc.)

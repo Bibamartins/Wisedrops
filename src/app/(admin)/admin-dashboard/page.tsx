@@ -1,9 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
+import { trpc } from '@/lib/trpc'
+import { ClipboardCheck, ChevronRight } from 'lucide-react'
 
 // ---------- Mock data ----------
 
@@ -54,6 +57,8 @@ const SYSTEM_ALERTS = [
 
 export default function AdminDashboard() {
   const maxRevenue = Math.max(...REVENUE_MONTHS.map((r) => r.value))
+  const externalRxQuery = trpc.externalPrescription.listPending.useQuery({ page: 1, limit: 1 })
+  const pendingCount = externalRxQuery.data?.total ?? 0
 
   return (
     <div className="space-y-6">
@@ -62,6 +67,31 @@ export default function AdminDashboard() {
         <h1 className="text-2xl font-heading font-bold text-surface-900">Painel Administrativo</h1>
         <p className="text-surface-500 text-sm">Visao geral da plataforma WiseDrops</p>
       </div>
+
+      {/* Banner: receitas externas pendentes */}
+      {pendingCount > 0 && (
+        <Link
+          href="/operacional/receitas-externas"
+          className="block p-5 rounded-2xl bg-gradient-to-r from-warning-50 to-brand-50 border border-warning-200 hover:border-warning-400 hover:shadow-md transition group"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-warning-100">
+                <ClipboardCheck className="h-6 w-6 text-warning-700" />
+              </div>
+              <div>
+                <p className="font-heading font-bold text-h3 text-surface-900">
+                  {pendingCount} receita{pendingCount === 1 ? '' : 's'} externa{pendingCount === 1 ? '' : 's'} pra revisar
+                </p>
+                <p className="text-small text-surface-600">
+                  Pacientes que enviaram documentação pelo caminho &quot;Já tenho receita&quot; e aguardam sua aprovação.
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-surface-500 group-hover:translate-x-1 transition" />
+          </div>
+        </Link>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">

@@ -33,6 +33,9 @@ import {
   Sparkles,
   Clock,
   CheckCircle2,
+  UploadCloud,
+  AlertCircle,
+  XCircle,
 } from 'lucide-react'
 import LegacyDashboard from '../dashboard/page'
 
@@ -155,21 +158,79 @@ export default function HomePage() {
     return <LegacyDashboard />
   }
 
-  // ---------------- NEW --------------------
+  // ---------------- NEW: 2 caminhos --------------------
   if (state === 'NEW') {
     return (
       <div className="space-y-8">
-        <StageCard
-          icon={ClipboardList}
-          tone="brand"
-          eyebrow="Comece por aqui"
-          title="Vamos entender o que está acontecendo com você."
-          description="Em 8 perguntas a gente identifica a melhor jornada de tratamento pra sua condição. Sem cadastro extra, sem cobrança nessa etapa."
-          ctaPrimary={{ label: 'Fazer meu diagnóstico', href: '/quiz' }}
-          ctaSecondary={{ label: 'Ver médicos primeiro', href: '/medicos' }}
-        />
+        <div>
+          <p className="text-overline text-brand-700 mb-2 uppercase tracking-widest font-semibold">
+            Bem-vindo à WiseDrops
+          </p>
+          <h1 className="text-3xl md:text-h1 font-heading font-bold text-surface-900 leading-tight">
+            Como você prefere começar?
+          </h1>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Caminho 1 — diagnóstico via quiz */}
+          <Link
+            href="/quiz"
+            className="group block p-6 md:p-8 rounded-2xl bg-white border border-surface-200 hover:border-brand-300 hover:shadow-md transition"
+          >
+            <div className="p-3 rounded-xl bg-brand-50 inline-flex">
+              <ClipboardList className="h-7 w-7 text-brand-700" />
+            </div>
+            <p className="text-overline text-brand-700 uppercase tracking-widest font-semibold mt-5 mb-2">
+              Caminho 1
+            </p>
+            <h2 className="text-h2 font-heading font-bold text-surface-900 mb-2 group-hover:text-brand-700 transition">
+              Quero avaliação médica
+            </h2>
+            <p className="text-body text-surface-600 mb-4 leading-relaxed">
+              Faça o diagnóstico inicial em 8 perguntas, escolha um médico prescritor e
+              comece o tratamento do começo.
+            </p>
+            <ul className="space-y-1.5 text-small text-surface-500 mb-4">
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-sage-600 shrink-0" /> Quiz de 3 minutos</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-sage-600 shrink-0" /> Consulta com médico em até 48h</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-sage-600 shrink-0" /> Receita digital + ANVISA</li>
+            </ul>
+            <span className="inline-flex items-center text-brand-700 font-semibold group-hover:gap-3 gap-2 transition-all">
+              Começar diagnóstico →
+            </span>
+          </Link>
+
+          {/* Caminho 2 — já tem receita */}
+          <Link
+            href="/upload-receita"
+            className="group block p-6 md:p-8 rounded-2xl bg-white border border-surface-200 hover:border-sage-400 hover:shadow-md transition"
+          >
+            <div className="p-3 rounded-xl bg-sage-50 inline-flex">
+              <UploadCloud className="h-7 w-7 text-sage-700" />
+            </div>
+            <p className="text-overline text-sage-700 uppercase tracking-widest font-semibold mt-5 mb-2">
+              Caminho 2
+            </p>
+            <h2 className="text-h2 font-heading font-bold text-surface-900 mb-2 group-hover:text-sage-700 transition">
+              Já tenho receita médica
+            </h2>
+            <p className="text-body text-surface-600 mb-4 leading-relaxed">
+              Pule o quiz e a consulta. Faça upload da sua receita + documentação e,
+              após aprovação, acesse o catálogo direto.
+            </p>
+            <ul className="space-y-1.5 text-small text-surface-500 mb-4">
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-sage-600 shrink-0" /> Receita médica + RG + comprovante</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-sage-600 shrink-0" /> Aprovação em até 24h</li>
+              <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-sage-600 shrink-0" /> Sem custo de consulta</li>
+            </ul>
+            <span className="inline-flex items-center text-sage-700 font-semibold group-hover:gap-3 gap-2 transition-all">
+              Enviar documentação →
+            </span>
+          </Link>
+        </div>
+
         <p className="text-small text-surface-500 text-center">
-          ⏱ Leva cerca de 3 minutos · Suas respostas ficam protegidas pela LGPD
+          Não sabe qual escolher? <a href="https://wa.me/14073835692" target="_blank" rel="noopener noreferrer" className="text-brand-700 underline">Fale com a gente no WhatsApp</a>
         </p>
       </div>
     )
@@ -187,6 +248,57 @@ export default function HomePage() {
           description="Seu diagnóstico inicial indica que você se beneficia de avaliação médica. Escolha um especialista, agende a consulta e dê o próximo passo."
           ctaPrimary={{ label: 'Escolher médico', href: '/medicos' }}
           ctaSecondary={{ label: 'Refazer diagnóstico', href: '/quiz' }}
+        />
+      </div>
+    )
+  }
+
+  // ---------------- EXTERNAL_RX_PENDING (caminho 2 — análise) -----
+  if (state === 'EXTERNAL_RX_PENDING') {
+    return (
+      <div className="space-y-8">
+        <StageCard
+          icon={Clock}
+          tone="info"
+          eyebrow="Documentação em análise"
+          title="Sua receita está sendo analisada pela nossa equipe."
+          description="Em até 24 horas você recebe a resposta por e-mail. Assim que aprovada, libera o catálogo direto pra você comprar."
+        />
+      </div>
+    )
+  }
+
+  // ---------------- EXTERNAL_RX_REJECTED -------------------------
+  if (state === 'EXTERNAL_RX_REJECTED') {
+    return (
+      <div className="space-y-8">
+        <StageCard
+          icon={XCircle}
+          tone="warning"
+          eyebrow="Precisamos de mais informação"
+          title="Sua documentação precisa de ajustes."
+          description={
+            (context.rejectionReason as string | undefined) ||
+            'Precisamos que você reenvie alguns documentos pra completar a análise.'
+          }
+          ctaPrimary={{ label: 'Reenviar documentação', href: '/upload-receita' }}
+          ctaSecondary={{ label: 'Falar no WhatsApp', href: 'https://wa.me/14073835692' }}
+        />
+      </div>
+    )
+  }
+
+  // ---------------- EXTERNAL_RX_APPROVED (libera catálogo) -------
+  if (state === 'EXTERNAL_RX_APPROVED') {
+    return (
+      <div className="space-y-8">
+        <StageCard
+          icon={Sparkles}
+          tone="success"
+          eyebrow="Aprovado"
+          title="Sua documentação foi aprovada!"
+          description="Você já pode escolher seu produto no catálogo. Após o pagamento, a gente cuida do envio + autorização ANVISA pra você."
+          ctaPrimary={{ label: 'Ver catálogo', href: '/comprar' }}
         />
       </div>
     )
