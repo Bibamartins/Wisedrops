@@ -192,31 +192,102 @@ export async function sendPatientWelcomeEmail(input: {
   const uploadUrl = `${BASE_URL}/upload-receita`
   const firstName = input.patientName.split(' ')[0]
   const body = `
-    <h1 style="margin:0 0 16px;font-size:24px;color:#1a1a1a;">Bem-vindo(a) à WiseDrops, ${firstName}!</h1>
-    <p style="margin:0 0 16px;color:#374151;line-height:1.6;">
-      Sua conta foi criada com sucesso. Estamos aqui pra te conectar a médicos prescritores certificados em cannabis medicinal, com acompanhamento real do começo ao fim do tratamento.
+    <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:2px;">Bem-vindo à WiseDrops</p>
+    <h1 style="margin:0 0 20px;font-size:28px;line-height:1.2;color:#1a1a1a;font-weight:700;letter-spacing:-0.02em;">
+      Que bom ter você aqui, ${firstName}.
+    </h1>
+
+    <p style="margin:0 0 16px;color:#374151;line-height:1.7;font-size:16px;">
+      A WiseDrops nasceu de uma frustração simples: tratamento com cannabis medicinal no Brasil ainda é uma jornada confusa, cara e desumana. Paciente correndo atrás de médico, atrás de receita, atrás de produto. Sem ninguém olhando o quadro inteiro.
     </p>
 
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:18px;margin:0 0 20px;">
-      <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#166534;">Como você prefere começar?</p>
-      <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6;">
-        <strong>1.</strong> Faça nosso diagnóstico inicial em 3 minutos e seja conectado ao médico ideal pra sua condição.
-      </p>
-      <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">
-        <strong>2.</strong> Já tem receita médica? Pule pro upload de documentação e libere o catálogo direto.
-      </p>
-    </div>
-
-    <div style="margin:0 0 12px;">${button('Fazer diagnóstico', quizUrl)}</div>
-    <div style="margin:0 0 8px;">
-      <a href="${uploadUrl}" style="color:#ea580c;font-size:14px;text-decoration:underline;">Já tenho receita →</a>
-    </div>
-
-    <p style="margin:24px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">
-      Qualquer dúvida, é só responder este e-mail ou chamar no WhatsApp <a href="https://wa.me/14073835692" style="color:#ea580c;">+1 (407) 383-5692</a>.
+    <p style="margin:0 0 24px;color:#374151;line-height:1.7;font-size:16px;">
+      A gente fez diferente. Aqui, você fala com médico de verdade — não chatbot. Recebe receita digital validada, com lastro ANVISA. Compra produto direto pela plataforma, com acompanhamento contínuo. E quem cuida de você é sempre o mesmo médico ao longo do tratamento.
     </p>
+
+    <!-- 2 caminhos -->
+    <div style="border:1px solid #e5e5e5;border-radius:12px;padding:24px;margin:0 0 24px;background:#fafafa;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#737373;text-transform:uppercase;letter-spacing:2px;">Próximo passo</p>
+      <p style="margin:0 0 20px;font-size:18px;color:#1a1a1a;font-weight:600;">Escolha como você quer começar:</p>
+
+      <div style="border-left:3px solid #ea580c;padding:4px 16px;margin:0 0 16px;">
+        <p style="margin:0 0 4px;font-size:15px;font-weight:600;color:#1a1a1a;">1. Quero avaliação médica</p>
+        <p style="margin:0;color:#525252;font-size:14px;line-height:1.5;">Faça nosso diagnóstico inicial em 3 minutos. Identificamos sua condição prioritária e te conectamos a um médico especialista em até 48h.</p>
+      </div>
+
+      <div style="border-left:3px solid #5b7d5b;padding:4px 16px;">
+        <p style="margin:0 0 4px;font-size:15px;font-weight:600;color:#1a1a1a;">2. Já tenho receita médica</p>
+        <p style="margin:0;color:#525252;font-size:14px;line-height:1.5;">Pule a consulta. Faça upload da receita e documentação. Após aprovação (até 24h), libera o catálogo de produtos direto.</p>
+      </div>
+    </div>
+
+    <div style="margin:0 0 12px;">${button('Fazer meu diagnóstico', quizUrl)}</div>
+    <div style="margin:0 0 28px;">
+      <a href="${uploadUrl}" style="color:#3a4f3a;font-size:14px;font-weight:600;text-decoration:none;border-bottom:1px solid #aabfaa;padding-bottom:1px;">Já tenho receita → enviar documentação</a>
+    </div>
+
+    <!-- Diferenciais -->
+    <div style="border-top:1px solid #ececec;padding-top:24px;margin:0 0 24px;">
+      <p style="margin:0 0 14px;font-size:11px;font-weight:700;color:#737373;text-transform:uppercase;letter-spacing:2px;">O que muda na WiseDrops</p>
+
+      <table cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+          <td valign="top" style="padding:0 0 14px;width:32px;">
+            <div style="width:28px;height:28px;border-radius:8px;background:#fff7ed;text-align:center;line-height:28px;">
+              <span style="font-size:14px;">✓</span>
+            </div>
+          </td>
+          <td valign="top" style="padding:0 0 14px 12px;">
+            <p style="margin:0;font-size:14px;color:#1a1a1a;font-weight:600;">Médicos certificados em cannabis medicinal</p>
+            <p style="margin:2px 0 0;font-size:13px;color:#737373;line-height:1.5;">Todos com RDC 327, currículo verificado e formação específica.</p>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" style="padding:0 0 14px;width:32px;">
+            <div style="width:28px;height:28px;border-radius:8px;background:#fff7ed;text-align:center;line-height:28px;">
+              <span style="font-size:14px;">✓</span>
+            </div>
+          </td>
+          <td valign="top" style="padding:0 0 14px 12px;">
+            <p style="margin:0;font-size:14px;color:#1a1a1a;font-weight:600;">Receita digital + ANVISA na mesma plataforma</p>
+            <p style="margin:2px 0 0;font-size:13px;color:#737373;line-height:1.5;">Sem corrida atrás de farmácia. A gente cuida do protocolo pra você.</p>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" style="padding:0 0 14px;width:32px;">
+            <div style="width:28px;height:28px;border-radius:8px;background:#fff7ed;text-align:center;line-height:28px;">
+              <span style="font-size:14px;">✓</span>
+            </div>
+          </td>
+          <td valign="top" style="padding:0 0 14px 12px;">
+            <p style="margin:0;font-size:14px;color:#1a1a1a;font-weight:600;">Acompanhamento contínuo, mesmo médico</p>
+            <p style="margin:2px 0 0;font-size:13px;color:#737373;line-height:1.5;">Cannabis exige ajuste fino. Aqui você não é atendido por médico diferente toda vez.</p>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" style="padding:0;width:32px;">
+            <div style="width:28px;height:28px;border-radius:8px;background:#f4f7f4;text-align:center;line-height:28px;">
+              <span style="font-size:14px;">🔒</span>
+            </div>
+          </td>
+          <td valign="top" style="padding:0 0 0 12px;">
+            <p style="margin:0;font-size:14px;color:#1a1a1a;font-weight:600;">Seus dados são protegidos pela LGPD</p>
+            <p style="margin:2px 0 0;font-size:13px;color:#737373;line-height:1.5;">Sigilo médico, criptografia e plataforma regulamentada ANVISA.</p>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Suporte humano -->
+    <div style="background:#f4f7f4;border-left:3px solid #5b7d5b;padding:16px 20px;border-radius:0 8px 8px 0;margin:0 0 8px;">
+      <p style="margin:0 0 6px;font-size:14px;font-weight:600;color:#1a1a1a;">Vai dar tudo certo. E se não der, a gente resolve.</p>
+      <p style="margin:0;font-size:13px;color:#525252;line-height:1.6;">
+        Qualquer coisa, responde esse e-mail ou chama no WhatsApp <a href="https://wa.me/14073835692" style="color:#3a4f3a;text-decoration:underline;font-weight:600;">+1 (407) 383-5692</a>.
+        Tem gente real do outro lado, todos os dias.
+      </p>
+    </div>
   `
-  await send(input.patientEmail, `Bem-vindo à WiseDrops, ${firstName}!`, layout('Bem-vindo', body))
+  await send(input.patientEmail, `${firstName}, sua jornada começa aqui ✨`, layout('Bem-vindo', body))
 }
 
 /** E-mail de cadastro recebido ao médico (antes da aprovação admin). */
@@ -226,21 +297,73 @@ export async function sendDoctorRegistrationReceivedEmail(input: {
 }): Promise<void> {
   const firstName = input.doctorName.split(' ')[0]
   const body = `
-    <h1 style="margin:0 0 16px;font-size:22px;color:#1a1a1a;">Cadastro recebido</h1>
-    <p style="margin:0 0 12px;color:#374151;line-height:1.6;">Dr(a). ${firstName},</p>
-    <p style="margin:0 0 20px;color:#374151;line-height:1.6;">
-      Recebemos seu cadastro como médico prescritor na WiseDrops. Vamos analisar sua documentação (CRM, diploma, RDC 327) em até <strong>1 a 3 dias úteis</strong>.
+    <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:2px;">Cadastro recebido</p>
+    <h1 style="margin:0 0 20px;font-size:26px;line-height:1.2;color:#1a1a1a;font-weight:700;letter-spacing:-0.02em;">
+      Obrigado por se cadastrar, Dr(a). ${firstName}.
+    </h1>
+
+    <p style="margin:0 0 16px;color:#374151;line-height:1.7;font-size:16px;">
+      Cannabis medicinal precisa de médicos como você — sérios, com formação real e disposição pra ouvir o paciente em vez de receitar no escuro. Por isso a gente faz uma análise cuidadosa de cada cadastro antes de liberar.
     </p>
-    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px;margin:0 0 20px;">
-      <p style="margin:0;color:#9a3412;font-size:14px;line-height:1.6;">
-        <strong>Próximo passo:</strong> Aguarde nosso e-mail confirmando a aprovação. Após aprovado, você acessa o painel pra configurar agenda, valor de consulta e começar a atender.
+
+    <!-- Timeline -->
+    <div style="border:1px solid #e5e5e5;border-radius:12px;padding:20px 24px;margin:0 0 24px;background:#fafafa;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#737373;text-transform:uppercase;letter-spacing:2px;">O que acontece agora</p>
+      <p style="margin:0 0 18px;font-size:16px;color:#1a1a1a;font-weight:600;">3 etapas até você começar a atender:</p>
+
+      <table cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr>
+          <td valign="top" style="padding:0 0 14px;width:36px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#ea580c;color:#fff;text-align:center;line-height:28px;font-size:13px;font-weight:700;">1</div>
+          </td>
+          <td valign="top" style="padding:0 0 14px 14px;">
+            <p style="margin:0;font-size:14px;color:#1a1a1a;font-weight:600;">Análise da documentação</p>
+            <p style="margin:2px 0 0;font-size:13px;color:#737373;line-height:1.5;">Verificação CRM no portal CFM + diploma + RDC 327. Até 1-3 dias úteis.</p>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" style="padding:0 0 14px;width:36px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#fed7aa;color:#9a3412;text-align:center;line-height:28px;font-size:13px;font-weight:700;">2</div>
+          </td>
+          <td valign="top" style="padding:0 0 14px 14px;">
+            <p style="margin:0;font-size:14px;color:#1a1a1a;font-weight:600;">E-mail de aprovação</p>
+            <p style="margin:2px 0 0;font-size:13px;color:#737373;line-height:1.5;">Te avisamos quando estiver pronto pra acessar o painel completo.</p>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top" style="padding:0;width:36px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#fed7aa;color:#9a3412;text-align:center;line-height:28px;font-size:13px;font-weight:700;">3</div>
+          </td>
+          <td valign="top" style="padding:0 0 0 14px;">
+            <p style="margin:0;font-size:14px;color:#1a1a1a;font-weight:600;">Configuração e primeiro paciente</p>
+            <p style="margin:2px 0 0;font-size:13px;color:#737373;line-height:1.5;">Defina sua agenda, valor de consulta e bio. Pacientes começam a chegar.</p>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Diferenciais pro médico -->
+    <div style="border-top:1px solid #ececec;padding-top:24px;margin:0 0 24px;">
+      <p style="margin:0 0 14px;font-size:11px;font-weight:700;color:#737373;text-transform:uppercase;letter-spacing:2px;">Por que ser parte da WiseDrops</p>
+
+      <p style="margin:0 0 12px;color:#374151;line-height:1.7;font-size:15px;">
+        <strong style="color:#1a1a1a;">Captação feita pra você.</strong> Você foca no atendimento. A gente traz o paciente.
+      </p>
+      <p style="margin:0 0 12px;color:#374151;line-height:1.7;font-size:15px;">
+        <strong style="color:#1a1a1a;">Prontuário eletrônico real.</strong> Quiz da paciente + histórico + receitas anteriores numa tela só antes de cada consulta.
+      </p>
+      <p style="margin:0;color:#374151;line-height:1.7;font-size:15px;">
+        <strong style="color:#1a1a1a;">Compliance que protege você.</strong> Receita digital com lastro, ANVISA automatizada, LGPD.
       </p>
     </div>
-    <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.6;">
-      Dúvidas? Responde este e-mail ou WhatsApp <a href="https://wa.me/14073835692" style="color:#ea580c;">+1 (407) 383-5692</a>.
-    </p>
+
+    <div style="background:#f4f7f4;border-left:3px solid #5b7d5b;padding:16px 20px;border-radius:0 8px 8px 0;margin:0 0 8px;">
+      <p style="margin:0;font-size:13px;color:#525252;line-height:1.6;">
+        Qualquer dúvida durante a análise: WhatsApp <a href="https://wa.me/14073835692" style="color:#3a4f3a;text-decoration:underline;font-weight:600;">+1 (407) 383-5692</a>.
+      </p>
+    </div>
   `
-  await send(input.doctorEmail, 'Cadastro recebido — análise em 1 a 3 dias', layout('Cadastro recebido', body))
+  await send(input.doctorEmail, `Dr(a). ${firstName}, recebemos seu cadastro`, layout('Cadastro recebido', body))
 }
 
 /** E-mail pós-quiz com resumo + próximo passo. */
@@ -257,30 +380,75 @@ export async function sendPatientQuizCompletedEmail(input: {
     input.riskLevel === 'high' ? 'Alta' :
     input.riskLevel === 'medium' ? 'Média' :
     'Baixa'
+  const riskColor =
+    input.riskLevel === 'high' ? '#b42318' :
+    input.riskLevel === 'medium' ? '#b45309' :
+    '#3a4f3a'
   const focusItems = input.consultationFocus.slice(0, 4).map((f) =>
-    `<span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#e6ede6;color:#3a4f3a;font-size:12px;margin:0 4px 4px 0;">${f}</span>`
+    `<span style="display:inline-block;padding:6px 12px;border-radius:999px;background:#e6ede6;color:#3a4f3a;font-size:12px;font-weight:600;margin:0 6px 6px 0;">${f}</span>`
   ).join('')
 
   const body = `
-    <h1 style="margin:0 0 12px;font-size:22px;color:#1a1a1a;">Seu diagnóstico inicial está pronto, ${firstName}</h1>
-    <p style="margin:0 0 20px;color:#374151;line-height:1.6;">
-      Analisamos suas respostas e identificamos o foco da sua próxima consulta. Agora é hora de escolher um médico prescritor.
+    <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:2px;">Sua avaliação está pronta</p>
+    <h1 style="margin:0 0 20px;font-size:26px;line-height:1.2;color:#1a1a1a;font-weight:700;letter-spacing:-0.02em;">
+      Boa, ${firstName}. Diagnóstico inicial completo.
+    </h1>
+
+    <p style="margin:0 0 24px;color:#374151;line-height:1.7;font-size:16px;">
+      Lemos suas respostas com cuidado. Aqui está o que identificamos — e o próximo passo certo pra você.
     </p>
 
-    <div style="background:#f8f7f5;border:1px solid #e5e5e5;border-radius:10px;padding:16px;margin:0 0 20px;">
-      <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#737373;text-transform:uppercase;letter-spacing:1px;">Sua avaliação</p>
-      <p style="margin:0 0 4px;color:#1a1a1a;font-size:15px;"><strong>Prioridade clínica:</strong> ${riskLabel}</p>
-      <p style="margin:0 0 12px;color:#1a1a1a;font-size:15px;"><strong>Condição prioritária:</strong> ${input.priorityCondition}</p>
-      ${focusItems ? `<p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#737373;">Foco da consulta</p><div>${focusItems}</div>` : ''}
+    <!-- Card resumo -->
+    <div style="border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;margin:0 0 24px;">
+      <div style="background:#fafafa;padding:14px 20px;border-bottom:1px solid #e5e5e5;">
+        <p style="margin:0;font-size:11px;font-weight:700;color:#737373;text-transform:uppercase;letter-spacing:2px;">Sua avaliação clínica</p>
+      </div>
+      <div style="padding:20px;">
+        <table cellpadding="0" cellspacing="0" style="width:100%;">
+          <tr>
+            <td valign="top" style="padding:0 0 14px;">
+              <p style="margin:0 0 4px;font-size:12px;color:#737373;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Prioridade clínica</p>
+              <p style="margin:0;font-size:17px;color:${riskColor};font-weight:700;">${riskLabel}</p>
+            </td>
+          </tr>
+          <tr>
+            <td valign="top" style="padding:0 0 14px;">
+              <p style="margin:0 0 4px;font-size:12px;color:#737373;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Condição prioritária</p>
+              <p style="margin:0;font-size:16px;color:#1a1a1a;font-weight:600;">${input.priorityCondition}</p>
+            </td>
+          </tr>
+          ${focusItems ? `
+          <tr>
+            <td valign="top" style="padding:0;">
+              <p style="margin:0 0 8px;font-size:12px;color:#737373;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Foco recomendado da consulta</p>
+              <div>${focusItems}</div>
+            </td>
+          </tr>` : ''}
+        </table>
+      </div>
     </div>
 
-    <div style="margin:0 0 12px;">${button('Escolher médico', url)}</div>
+    <!-- Próximo passo -->
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:20px;margin:0 0 24px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#9a3412;text-transform:uppercase;letter-spacing:2px;">Próximo passo</p>
+      <p style="margin:0 0 8px;font-size:18px;color:#1a1a1a;font-weight:600;">Escolher seu médico prescritor</p>
+      <p style="margin:0 0 16px;color:#525252;font-size:14px;line-height:1.6;">
+        Temos médicos certificados em cannabis medicinal disponíveis pra consulta em até <strong>48 horas</strong>. Escolha pelo perfil que mais combina com você — bio, especialidade, valor, horários.
+      </p>
+      <div>${button('Ver médicos disponíveis', url)}</div>
+    </div>
 
-    <p style="margin:24px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">
-      Você tem médicos certificados em cannabis medicinal disponíveis pra consulta em até 48h. Sem custo de plataforma além do valor da consulta médica.
-    </p>
+    <!-- Reforço de confiança -->
+    <div style="border-top:1px solid #ececec;padding-top:20px;">
+      <p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.6;">
+        <strong style="color:#1a1a1a;">Suas respostas são confidenciais.</strong> Só o médico que você escolher vai ter acesso. Nenhuma seguradora, nenhum dado de saúde sai daqui.
+      </p>
+      <p style="margin:0;font-size:13px;color:#737373;line-height:1.6;">
+        Dúvida ou prefere falar antes de agendar? Chama no WhatsApp <a href="https://wa.me/14073835692" style="color:#c2410c;font-weight:600;text-decoration:underline;">+1 (407) 383-5692</a>.
+      </p>
+    </div>
   `
-  await send(input.patientEmail, 'Sua avaliação está pronta — próximo passo: médico', layout('Avaliação pronta', body))
+  await send(input.patientEmail, `${firstName}, sua avaliação está pronta`, layout('Avaliação pronta', body))
 }
 
 export async function sendPatientOrderConfirmedEmail(input: {
